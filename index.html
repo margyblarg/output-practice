@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff" id="themeColor">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Output Practice</title>
+<style>
+  :root {
+    --fg:#111; --bg:#fff; --muted:#888; --line:#ddd; --accent:#1a6;
+    --field-bg:#fff; --btn-bg:#fafafa;
+    --danger-fg:#a11; --danger-line:#e9b9b9; --danger-bg:#fdf4f4;
+  }
+  body.dark {
+    --fg:#e6e6e6; --bg:#161616; --muted:#8a8a8a; --line:#333; --accent:#46c8b0;
+    --field-bg:#1e1e1e; --btn-bg:#242424;
+    --danger-fg:#f08a8a; --danger-line:#5a2d2d; --danger-bg:#241818;
+  }
+  html { background: var(--bg); }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    color: var(--fg); background: var(--bg);
+    min-height: 100vh;
+    min-height: 100dvh;              /* dvh: excludes Android's collapsing URL bar */
+    display: flex; flex-direction: column;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;       /* no rubber-band bounce while tapping through cards */
+  }
+  /* storage-broken banner */
+  #warn { display:none; background:var(--danger-bg); color:var(--danger-fg);
+    border-bottom:1px solid var(--danger-line); padding:11px 14px;
+    font-size:13px; line-height:1.55; }
+  #warn.show { display:block; }
+  #warn b { font-weight:600; }
+  #warn code { font-family:ui-monospace,Consolas,monospace; word-break:break-all;
+    background:rgba(128,128,128,.16); padding:1px 4px; border-radius:3px; }
+
+  /* top bar */
+  #bar {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; border-bottom:1px solid var(--line);
+    font-size:14px; color:var(--muted); flex-wrap:wrap;
+  }
+  #bar select { font-size:14px; padding:3px 6px; background:var(--field-bg); color:var(--fg);
+    border:1px solid var(--line); border-radius:4px; }
+  #bar .stat { white-space:nowrap; }
+  #bar .spacer { flex:1; }
+  #menuBtn { background:none; border:1px solid var(--line); border-radius:6px;
+    padding:4px 10px; cursor:pointer; font-size:14px; color:var(--fg); }
+
+  /* main card area */
+  #stage {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:24px;
+    cursor:pointer; user-select:none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;      /* kills the 300ms double-tap-zoom delay */
+  }
+  #meta { color:var(--muted); font-size:14px; margin-bottom:18px; min-height:18px; }
+  #tag { display:inline; }
+  .tagchip { display:inline-block; border:1px solid var(--line); border-radius:999px;
+    padding:1px 10px; margin-right:6px; }
+  #mature { color:var(--accent); font-weight:600; }
+  #en { font-size: clamp(26px, 5vw, 48px); line-height:1.25; max-width:18em; }
+  #divider { width:60px; height:1px; background:var(--line); margin:26px 0; opacity:0; }
+  #vi { font-size: clamp(22px, 4.2vw, 40px); line-height:1.3; max-width:18em; color:var(--fg);
+    min-height:1.3em; }
+  #hint { margin-top:34px; color:var(--muted); font-size:13px; min-height:16px; }
+  .revealed #divider { opacity:1; }
+
+  #empty { color:var(--muted); font-size:18px; max-width:24em; line-height:1.5; }
+
+  /* menu overlay */
+  #menu { position:fixed; inset:0; background:var(--bg); display:none;
+    overflow:auto; padding:24px; }
+  #menu.open { display:block; }
+  #menu .wrap { max-width:640px; margin:0 auto; }
+  #menu h2 { font-size:18px; margin:24px 0 8px; }
+  #menu h2:first-child { margin-top:0; }
+  .note { color:var(--muted); font-size:13px; }
+  #menu p.note { margin:4px 0 10px; }
+  #menu textarea { width:100%; height:160px; font-family:ui-monospace,Consolas,monospace;
+    font-size:13px; padding:8px; border:1px solid var(--line); border-radius:6px;
+    background:var(--field-bg); color:var(--fg); }
+  #menu button, #menu label.filebtn {
+    font-size:14px; padding:7px 12px; margin:4px 6px 4px 0; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg);
+    display:inline-block; }
+  #menu button.danger { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
+  #menu input[type=number] { width:70px; font-size:14px; padding:5px;
+    background:var(--field-bg); color:var(--fg); border:1px solid var(--line); border-radius:4px; }
+  #menu label.switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:15px; }
+  #menu input[type=file] { display:none; }
+  #menu .row { margin:8px 0; }
+  #closeMenu { float:right; }
+  #msg, .msgout { color:var(--accent); font-size:13px; margin-left:6px; }
+
+  /* edit button on stage */
+  #editBtn { margin-left:10px; font-size:12px; color:var(--muted); background:none;
+    border:1px solid var(--line); border-radius:999px; padding:1px 9px; cursor:pointer; }
+  #editBtn:hover { color:var(--fg); }
+  .failtag { color:var(--danger-fg); }
+  /* fail button on stage (shown after reveal) */
+  #failBtn { margin-top:18px; font-size:14px; cursor:pointer; padding:7px 16px;
+    border-radius:6px; color:var(--danger-fg); border:1px solid var(--danger-line);
+    background:var(--danger-bg); }
+
+  /* browse overlay */
+  #browse { position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; }
+  #browse.open { display:flex; }
+  .bwrap { display:flex; flex-direction:column; height:100%; max-width:760px; width:100%;
+    margin:0 auto; }
+  .bhead { display:flex; align-items:center; gap:10px; padding:12px 16px;
+    border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .bspacer { flex:1; }
+  #search { flex:1 1 200px; min-width:140px; font-size:15px; padding:6px 9px;
+    background:var(--field-bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; }
+  #bfilter { font-size:14px; padding:5px; background:var(--field-bg); color:var(--fg);
+    border:1px solid var(--line); border-radius:4px; }
+  #closeBrowse { font-size:14px; padding:6px 12px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
+  #blist { flex:1; overflow:auto; padding:8px 16px 24px; }
+  .brow { display:flex; align-items:flex-start; gap:12px; padding:10px 4px;
+    border-bottom:1px solid var(--line); }
+  .brow .txt { flex:1; min-width:0; }
+  .brow .ben { font-size:16px; }
+  .brow .bvi { font-size:15px; color:var(--muted); margin-top:2px; }
+  .brow .bmeta { font-size:12px; color:var(--muted); margin-top:4px; }
+  .brow .btag { border:1px solid var(--line); border-radius:999px; padding:0 8px; margin-right:6px; }
+  .brow .bbtns { display:flex; gap:6px; flex-shrink:0; }
+  .brow .bbtns button { font-size:13px; padding:4px 10px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
+  .brow .bbtns button.del { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
+  #bempty { color:var(--muted); padding:24px 4px; }
+
+  /* edit modal */
+  #editModal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+    align-items:center; justify-content:center; padding:16px; z-index:10; }
+  #editModal.open { display:flex; }
+  .ewrap { background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:20px; width:100%; max-width:460px; box-shadow:0 8px 40px rgba(0,0,0,.3); }
+  .ewrap h2 { margin:0 0 14px; font-size:18px; }
+  .efield { display:block; font-size:13px; color:var(--muted); margin-bottom:12px; }
+  .efield textarea, .efield input { display:block; width:100%; margin-top:4px; font-size:16px;
+    padding:7px 9px; background:var(--field-bg); color:var(--fg);
+    border:1px solid var(--line); border-radius:6px; font-family:inherit; resize:vertical; }
+  #eReviews { margin-bottom:12px; }
+  .erow { display:flex; align-items:center; gap:8px; }
+  .erow button { font-size:14px; padding:7px 14px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
+  .erow button#eSave { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .erow button.danger { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
+
+  /* stats overlay */
+  #stats { position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; }
+  #stats.open { display:flex; }
+  .swrap { display:flex; flex-direction:column; height:100%; max-width:680px; width:100%; margin:0 auto; }
+  .shead { display:flex; align-items:center; gap:10px; padding:12px 16px;
+    border-bottom:1px solid var(--line); font-size:18px; }
+  #closeStats { font-size:14px; padding:6px 12px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
+  #sbody { flex:1; overflow:auto; padding:16px; }
+  .sfoot { border-top:1px solid var(--line); padding:12px 16px; display:flex;
+    align-items:center; gap:10px; flex-wrap:wrap; }
+  .sfoot button.danger { font-size:14px; padding:6px 12px; cursor:pointer;
+    color:var(--danger-fg); border:1px solid var(--danger-line); background:var(--danger-bg); border-radius:6px; }
+  .bignums { display:flex; gap:28px; flex-wrap:wrap; margin-bottom:8px; }
+  .bignums .bn { font-size:34px; font-weight:700; display:block; line-height:1.1;
+    font-variant-numeric:tabular-nums; }
+  .bignums .bnl { font-size:13px; color:var(--muted); }
+  .statsec { font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;
+    margin:24px 0 10px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+  .statrow { display:flex; align-items:center; gap:10px; margin:6px 0; }
+  .statlbl { width:130px; flex-shrink:0; font-size:14px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .stattrack { flex:1; background:var(--btn-bg); border:1px solid var(--line);
+    border-radius:4px; height:18px; overflow:hidden; }
+  .statfill { height:100%; background:var(--accent); min-width:2px; }
+  .statval { width:56px; text-align:right; font-size:14px; font-variant-numeric:tabular-nums; }
+  #sempty { color:var(--muted); }
+
+  /* sync section */
+  #syncInfo { font-size:13px; color:var(--muted); line-height:1.6; margin:2px 0 12px; }
+  #syncInfo b { color:var(--fg); font-weight:600; }
+  #syncInfo .warn { color:var(--danger-fg); }
+  #menu #pasteJson { height:110px; }
+
+  /* ---------- phone layout ----------
+     Controls move to the BOTTOM so they're in thumb reach one-handed;
+     the card keeps the whole upper screen. Desktop is untouched. */
+  @media (max-width: 640px) {
+    #warn { order:0; padding-top:calc(11px + env(safe-area-inset-top)); }
+    #stage { order:1; padding:16px 18px; }
+    #bar {
+      order:2; border-bottom:none; border-top:1px solid var(--line);
+      position:sticky; bottom:0; background:var(--bg); gap:6px;
+      padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+    }
+    #bar .barlabel, #bar .spacer { display:none; }
+    #bar #counts { flex-basis:100%; order:-1; text-align:center; font-size:12px; }
+    #bar select { flex:1 1 0; min-width:0; font-size:13px; padding:9px 4px; }
+    #bar button { min-height:40px; padding:0 11px; font-size:13px; }
+
+    #en { font-size: clamp(28px, 7.2vw, 40px); }
+    #vi { font-size: clamp(24px, 6.2vw, 36px); }
+    #meta { font-size:13px; margin-bottom:14px; }
+    #hint { margin-top:24px; }
+
+    /* big, unmissable fail target */
+    #failBtn { margin-top:20px; font-size:16px; padding:14px 28px; min-width:70%; }
+    #editBtn { padding:4px 12px; }
+
+    /* overlays clear the notch and the gesture pill */
+    #menu { padding:20px 16px calc(28px + env(safe-area-inset-bottom)); padding-top:calc(20px + env(safe-area-inset-top)); }
+    .bhead, .shead { padding-top:calc(12px + env(safe-area-inset-top)); }
+    #blist { padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
+    #sbody { padding-bottom:calc(16px + env(safe-area-inset-bottom)); }
+    .sfoot { padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+    .statlbl { width:96px; }
+    #menu button, #menu label.filebtn { min-height:42px; padding:10px 14px; }
+    .brow .bbtns button { min-height:38px; padding:0 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="warn"></div>
+
+<div id="bar">
+  <span class="stat barlabel">Filter:</span>
+  <select id="filter"><option value="__all__">All cards</option></select>
+  <select id="statusFilter">
+    <option value="__all__">All</option>
+    <option value="learning">Learning</option>
+    <option value="mature">Mature</option>
+  </select>
+  <span class="stat" id="counts"></span>
+  <span class="spacer"></span>
+  <button id="browseBtn">Browse</button>
+  <button id="statsBtn">Stats</button>
+  <button id="menuBtn">Menu</button>
+</div>
+
+<div id="stage">
+  <div id="meta"><span id="tag"></span><span id="ctr"></span><button id="editBtn" title="Edit this card">✎ edit</button></div>
+  <div id="en"></div>
+  <div id="divider"></div>
+  <div id="vi"></div>
+  <div id="hint"></div>
+  <button id="failBtn" style="display:none">✗ Fail — back to learning</button>
+  <div id="empty" style="display:none"></div>
+</div>
+
+<div id="menu">
+ <div class="wrap">
+  <button id="closeMenu">Close</button>
+  <h2>Add cards</h2>
+  <p class="note">One card per line, tab-separated: <b>English⇥Vietnamese⇥Tags</b>. Tags optional; put several in one card separated by <b>;</b> (e.g. <code>greetings;cafe</code>). Blank lines and lines starting with <b>#</b> are ignored. Pasting from a spreadsheet gives you tabs automatically.</p>
+  <textarea id="paste" placeholder="Hello&#9;Xin chào&#9;greetings&#10;How are you?&#9;Bạn khỏe không?&#9;greetings"></textarea>
+  <div class="row">
+    <button id="addPaste">Add pasted cards</button>
+    <label class="filebtn">Import .txt file<input type="file" id="fileTxt" accept=".txt,.tsv,text/plain"></label>
+    <span id="msg" class="msgout"></span>
+  </div>
+
+  <h2>Settings</h2>
+  <div class="row">
+    <label class="switch"><input type="checkbox" id="darkToggle"> Dark mode</label>
+  </div>
+  <div class="row">
+    Mature at <input type="number" id="threshold" min="1" max="999"> reviews.
+    <span class="note">(How many reviews until a card counts as "learned". Higher = it keeps showing often for longer.)</span>
+  </div>
+
+  <h2>Sync &amp; backup</h2>
+  <div id="syncInfo"></div>
+  <p class="note"><b>Merge</b> is the everyday move: it combines this device with the other one — reviews add up, the most recent pass/fail wins, deletions carry across, and merging the same file twice changes nothing. Export from one device, merge it into the other, and repeat in the other direction.</p>
+  <div class="row">
+    <button id="export">Export sync file (.json)</button>
+    <label class="filebtn">Merge from .json<input type="file" id="fileMerge" accept=".json,application/json"></label>
+  </div>
+  <div class="row"><span class="msgout"></span></div>
+  <div class="row">
+    <label class="filebtn">Replace everything from .json<input type="file" id="fileJson" accept=".json,application/json"></label>
+    <span class="note">Wipes this device and takes the file as-is. Only for restoring after a wipe.</span>
+  </div>
+
+  <h2>Sync by copy-paste</h2>
+  <p class="note">If the download or file picker misbehaves (it can on Android when the page is opened straight off the filesystem), move the text instead. <b>Copy</b> here, paste into any notes app or chat with yourself, then paste it into the box on the other device and hit <b>Merge pasted</b>.</p>
+  <div class="row">
+    <button id="copyJson">Copy this device's data</button>
+    <button id="showJson">Show text</button>
+  </div>
+  <textarea id="pasteJson" placeholder="Paste sync JSON here…"></textarea>
+  <div class="row">
+    <button id="mergePasted">Merge pasted</button>
+    <button id="clearPasted">Clear box</button>
+    <span class="msgout"></span>
+  </div>
+
+  <h2>Danger zone</h2>
+  <div class="row">
+    <button class="danger" id="resetCounts">Reset all review counts</button>
+    <button class="danger" id="clearDeck">Delete entire deck</button>
+  </div>
+ </div>
+</div>
+
+<div id="browse">
+ <div class="bwrap">
+  <div class="bhead">
+    <input id="search" placeholder="Search English or Vietnamese…">
+    <select id="bfilter"><option value="__all__">All tags</option></select>
+    <span id="bcount" class="note"></span>
+    <span class="bspacer"></span>
+    <button id="closeBrowse">Close</button>
+  </div>
+  <div id="blist"></div>
+ </div>
+</div>
+
+<div id="stats">
+ <div class="swrap">
+  <div class="shead">
+    <strong>Stats</strong>
+    <span class="bspacer"></span>
+    <button id="closeStats">Close</button>
+  </div>
+  <div id="sbody"></div>
+  <div class="sfoot">
+    <button class="danger" id="resetStats">Reset stats history</button>
+    <span class="note">Activity history only — your cards and review counts are untouched.</span>
+  </div>
+ </div>
+</div>
+
+<div id="editModal">
+ <div class="ewrap">
+  <h2 id="editTitle">Edit card</h2>
+  <label class="efield">English<textarea id="eEn" rows="2"></textarea></label>
+  <label class="efield">Vietnamese<textarea id="eVi" rows="2"></textarea></label>
+  <label class="efield">Tags <span class="note">(separate with ;)</span><input id="eTag" type="text" placeholder="greetings;cafe"></label>
+  <div id="eReviews" class="note"></div>
+  <div class="erow">
+    <button id="eSave">Save</button>
+    <button id="eCancel">Cancel</button>
+    <span class="bspacer"></span>
+    <button class="danger" id="eDelete">Delete card</button>
+  </div>
+ </div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  const DECK_KEY = "outputDeck_v1";
+  const SET_KEY  = "outputSettings_v1";
+  const STATS_KEY = "outputStats_v1";
+
+  // ---------- state ----------
+  // Card shape: {id, en, vi, tag, prog, r:{dev:n}, f:{dev:n}, t, e, del?}
+  //   r / f  per-device review & fail tallies. Displayed as their sum; merged
+  //          per-device with max(), so importing the same file twice is a no-op.
+  //   t      last practised (ms). Decides whose `prog` wins in a merge.
+  //   e      last text/tag edit (ms). Decides whose wording wins.
+  //   del    tombstone timestamp — deleted, but kept so the delete can travel.
+  let deck = load(DECK_KEY, []);
+  let settings = load(SET_KEY, { threshold: 10, filter: "__all__" });
+  // activity ledger, kept separate from card review counts so resets never touch it.
+  // Bucketed per device: stats.dev[deviceId] = {daily,byTag,failDaily,failByTag}
+  let stats = load(STATS_KEY, { dev: {} });
+  let current = null;
+  let revealed = false;
+  let lastId = null;
+  const TOMBSTONE_TTL = 90 * 24 * 60 * 60 * 1000; // forget deletions after 90 days
+  const touch = () => Date.now();
+  // phone/tablet: drop the keyboard wording from the hints
+  const TOUCH = matchMedia("(pointer: coarse)").matches;
+
+  // This browser's identity. Generated once and never imported from a sync file,
+  // so two devices can always tell their own tallies apart.
+  function newDeviceId() {
+    return Math.random().toString(36).slice(2, 6) + Date.now().toString(36).slice(-4);
+  }
+
+  // ---------- per-device counter helpers ----------
+  function sumMap(m) {
+    let n = 0; for (const k in m) n += Number(m[k]) || 0; return n;
+  }
+  function totalReviews(c) { return sumMap(c.r); }
+  function totalFails(c) { return sumMap(c.f); }
+  function bump(map, by) { map[settings.device] = (Number(map[settings.device]) || 0) + (by || 1); }
+  // merge two per-device maps by taking the larger tally for each device —
+  // idempotent, so re-importing a file never inflates the numbers
+  function maxMerge(a, b) {
+    const out = {};
+    for (const k in a) out[k] = Number(a[k]) || 0;
+    for (const k in b) out[k] = Math.max(out[k] || 0, Number(b[k]) || 0);
+    return out;
+  }
+  function isDeleted(c) { return !!c.del; }
+  function liveDeck() { return deck.filter(c => !isDeleted(c)); }
+
+  // ---------- elements ----------
+  const $ = id => document.getElementById(id);
+  const stage = $("stage"), enEl = $("en"), viEl = $("vi"), tagEl = $("tag"),
+        ctrEl = $("ctr"), hintEl = $("hint"), emptyEl = $("empty"),
+        metaEl = $("meta"), filterEl = $("filter"), countsEl = $("counts");
+
+  // ---------- persistence ----------
+  function load(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function saveDeck() { try { localStorage.setItem(DECK_KEY, JSON.stringify(deck)); } catch (e) {} }
+  function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) {} }
+  function saveStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) {} }
+
+  // ---------- stats ledger ----------
+  function todayStr() {
+    const d = new Date(); // local date, not UTC
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  const STAT_BUCKETS = ["daily", "byTag", "failDaily", "failByTag"];
+  function emptyBuckets() {
+    const b = {}; STAT_BUCKETS.forEach(k => b[k] = {}); return b;
+  }
+  // this device's slice of the ledger — the only slice we ever write to
+  function myLedger() {
+    if (!stats.dev[settings.device]) stats.dev[settings.device] = emptyBuckets();
+    return stats.dev[settings.device];
+  }
+  // every device's slice for one bucket, added together — what Stats displays
+  function rolledUp(bucket) {
+    const out = {};
+    for (const d in stats.dev) {
+      const src = stats.dev[d][bucket] || {};
+      for (const k in src) out[k] = (out[k] || 0) + (Number(src[k]) || 0);
+    }
+    return out;
+  }
+  // record one review: bumps today's total and each of the card's current tags
+  // (untagged cards are bucketed under "No Tag")
+  function recordReview(card) {
+    const L = myLedger(), day = todayStr();
+    L.daily[day] = (L.daily[day] || 0) + 1;
+    const tags = cardTags(card);
+    (tags.length ? tags : ["No Tag"]).forEach(t => { L.byTag[t] = (L.byTag[t] || 0) + 1; });
+    saveStats();
+  }
+  // record one fail: bumps today's fail total and each of the card's current tags
+  function recordFail(card) {
+    const L = myLedger(), day = todayStr();
+    L.failDaily[day] = (L.failDaily[day] || 0) + 1;
+    const tags = cardTags(card);
+    (tags.length ? tags : ["No Tag"]).forEach(t => { L.failByTag[t] = (L.failByTag[t] || 0) + 1; });
+    saveStats();
+  }
+
+  // ---------- deck helpers ----------
+  function activeCards() {
+    return deck.filter(c => {
+      if (isDeleted(c)) return false;
+      if (settings.filter !== "__all__" && !cardTags(c).includes(settings.filter)) return false;
+      if (settings.status === "mature" && !isMature(c)) return false;
+      if (settings.status === "learning" && isMature(c)) return false;
+      return true;
+    });
+  }
+  // learning progress (prog) drives maturity & weighting; total reviews never goes down
+  function isMature(c) { return (c.prog || 0) >= settings.threshold; }
+  function cardById(id) { return deck.find(c => c.id === id); }
+  // a card's tag field is a ';'-separated string; split into a clean array
+  function cardTags(c) {
+    return (c.tag || "").split(";").map(t => t.trim()).filter(Boolean);
+  }
+  // canonical form: trimmed, de-duped, ';'-joined
+  function normalizeTags(str) {
+    const seen = [];
+    (str || "").split(";").map(t => t.trim()).filter(Boolean).forEach(t => {
+      if (!seen.includes(t)) seen.push(t);
+    });
+    return seen.join(";");
+  }
+  function tagList() {
+    const set = new Set();
+    liveDeck().forEach(c => cardTags(c).forEach(t => set.add(t)));
+    return Array.from(set).sort();
+  }
+  function tagOptions() { return tagList().map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join(""); }
+
+  // weighted-toward-new pick: fewer reviews => much heavier weight.
+  function pickNext() {
+    const pool = activeCards();
+    if (pool.length === 0) return null;
+    if (pool.length === 1) return pool[0];
+    const T = settings.threshold;
+    function weight(c) { return (T + 1) - Math.min(c.prog || 0, T); } // T+1 (new/failed) .. 1 (mature)
+    for (let attempt = 0; attempt < 6; attempt++) {
+      let total = 0;
+      for (const c of pool) total += weight(c);
+      let r = Math.random() * total;
+      let chosen = pool[pool.length - 1];
+      for (const c of pool) { r -= weight(c); if (r <= 0) { chosen = c; break; } }
+      if (chosen.id !== lastId || pool.length <= 1) return chosen; // avoid immediate repeat
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // ---------- rendering ----------
+  function rebuildFilter() {
+    const tags = tagList();
+    const prev = settings.filter;
+    filterEl.innerHTML = '<option value="__all__">All cards</option>' + tagOptions();
+    // keep selection if still valid
+    if (prev !== "__all__" && !tags.includes(prev)) settings.filter = "__all__";
+    filterEl.value = settings.filter;
+  }
+
+  function renderCounts() {
+    const pool = activeCards();
+    const mature = pool.filter(isMature).length;
+    countsEl.textContent = pool.length
+      ? `${pool.length} card${pool.length>1?"s":""} · ${mature} mature · ${pool.length-mature} learning`
+      : "";
+  }
+
+  function showCard(c) {
+    current = c; revealed = false;
+    stage.classList.remove("revealed");
+    if (!c) {
+      metaEl.style.display = enEl.style.display = viEl.style.display = hintEl.style.display = "none";
+      $("divider").style.display = "none";
+      emptyEl.style.display = "block";
+      emptyEl.innerHTML = liveDeck().length === 0
+        ? "No cards yet. Open <b>Menu</b> to paste or import a batch."
+        : "No cards for this filter.";
+      return;
+    }
+    emptyEl.style.display = "none";
+    metaEl.style.display = ""; enEl.style.display = ""; viEl.style.display = "";
+    hintEl.style.display = ""; $("divider").style.display = "";
+    const tags = cardTags(c);
+    tagEl.innerHTML = tags.map(t => `<span class="tagchip">${escapeHtml(t)}</span>`).join("");
+    tagEl.style.display = tags.length ? "inline" : "none";
+    const learn = isMature(c) ? `<span id="mature">★ mature</span>` : `${c.prog || 0} / ${settings.threshold}`;
+    const fails = totalFails(c);
+    ctrEl.innerHTML = `${learn} · ${totalReviews(c)} total`
+      + (fails > 0 ? ` · <span class="failtag">✗ ${fails}</span>` : "");
+    enEl.textContent = c.en;
+    viEl.textContent = "";
+    hintEl.textContent = TOUCH ? "tap to show answer" : "press space / tap to show answer";
+    $("failBtn").style.display = "none"; // shown after reveal
+  }
+
+  function reveal() {
+    revealed = true;
+    stage.classList.add("revealed");
+    viEl.textContent = current.vi;
+    hintEl.textContent = TOUCH ? "tap anywhere for next" : "press space / tap for next · F to fail";
+    $("failBtn").style.display = "inline-block";
+  }
+
+  function advance() {
+    if (!current) return;
+    if (!revealed) { reveal(); return; }
+    bump(current.r);              // total reviews (never goes down)
+    current.prog = (current.prog || 0) + 1;  // learning progress toward mature
+    current.t = touch();          // newest activity wins when devices merge
+    recordReview(current);        // log it to the activity ledger
+    lastId = current.id;
+    saveDeck();
+    renderCounts();
+    showCard(pickNext());
+  }
+
+  // fail: still a review, but learning progress goes back to 0 (total kept), fail logged
+  function fail() {
+    if (!current || !revealed) return;
+    bump(current.r);
+    bump(current.f);
+    current.prog = 0;             // back to learning phase
+    current.t = touch();
+    recordReview(current);        // a fail is still a review you did
+    recordFail(current);          // ...and logged separately as a fail
+    try { navigator.vibrate && navigator.vibrate(18); } catch (e) {}
+    lastId = current.id;
+    saveDeck();
+    renderCounts();
+    showCard(pickNext());
+  }
+
+  // ---------- import / parse ----------
+  function parseBatch(text) {
+    const out = [];
+    const lines = text.split(/\r?\n/);
+    for (const raw of lines) {
+      if (!raw.trim() || raw.trim().startsWith("#")) continue;
+      const parts = raw.split("\t");
+      const en = (parts[0] || "").trim();
+      const vi = (parts[1] || "").trim();
+      const tag = normalizeTags(parts[2] || "");
+      if (!en && !vi) continue;
+      out.push(newCard(en, vi, tag));
+    }
+    return out;
+  }
+  function newCard(en, vi, tag) {
+    const now = touch();
+    return { id: nextId(), en, vi, tag, prog: 0, r: {}, f: {}, t: now, e: now };
+  }
+  // device-prefixed so a bulk import here can never collide with a card made
+  // on the other device in the same millisecond range
+  let _idc = Date.now();
+  function nextId() { return settings.device + "-" + (_idc++).toString(36); }
+
+  function addCards(text) {
+    const cards = parseBatch(text);
+    if (cards.length === 0) { msg("Nothing to add — check tab spacing."); return; }
+    deck = deck.concat(cards);   // always add (dupes allowed)
+    saveDeck();
+    rebuildFilter(); renderCounts();
+    if (!current) showCard(pickNext());
+    msg(`Added ${cards.length} card${cards.length>1?"s":""}.`);
+  }
+
+  // ---------- menu wiring ----------
+  function applyTheme() {
+    document.body.classList.toggle("dark", !!settings.dark);
+    // keep the Android status bar in step when installed to the home screen
+    const m = $("themeColor");
+    if (m) m.setAttribute("content", settings.dark ? "#161616" : "#ffffff");
+  }
+
+  function openMenu() {
+    $("threshold").value = settings.threshold;
+    $("darkToggle").checked = !!settings.dark;
+    $("msg").textContent = "";
+    renderSyncInfo();
+    $("menu").classList.add("open");
+  }
+  function closeMenu() {
+    $("menu").classList.remove("open");
+    rebuildFilter(); renderCounts();
+    if (!current || !activeCards().some(c => c.id === current.id)) showCard(pickNext());
+  }
+  // echoed into every section so the confirmation is wherever you just tapped
+  function msg(t) {
+    document.querySelectorAll(".msgout").forEach(el => { el.textContent = t; });
+  }
+
+  $("menuBtn").onclick = openMenu;
+  $("closeMenu").onclick = closeMenu;
+  $("darkToggle").onchange = e => { settings.dark = e.target.checked; applyTheme(); saveSettings(); };
+  $("addPaste").onclick = () => { addCards($("paste").value); $("paste").value = ""; };
+
+  // let Tab type a real tab inside the batch box (Shift+Tab still moves focus out)
+  $("paste").addEventListener("keydown", e => {
+    if (e.key !== "Tab" || e.shiftKey) return;
+    e.preventDefault();
+    const ta = e.target, start = ta.selectionStart, end = ta.selectionEnd;
+    let inserted = false;
+    try { inserted = document.execCommand("insertText", false, "\t"); } catch (err) {}
+    if (!inserted) { // fallback if execCommand is unavailable
+      ta.value = ta.value.slice(0, start) + "\t" + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + 1;
+    }
+  });
+
+  $("fileTxt").onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => addCards(r.result);
+    r.readAsText(f); e.target.value = "";
+  };
+
+  $("threshold").onchange = e => {
+    let v = parseInt(e.target.value, 10);
+    if (!Number.isFinite(v) || v < 1) v = 10;
+    settings.threshold = v; saveSettings();
+    renderCounts();
+    if (current) showCard(current); // refresh counter label
+    msg("Threshold set to " + v + ".");
+  };
+
+  function cleanMap(m) {
+    const out = {};
+    if (m && typeof m === "object") for (const k in m) { const n = Number(m[k]); if (n > 0) out[k] = n; }
+    return out;
+  }
+  // Accepts every format this app has ever written and returns current-shape cards.
+  // `dev` is who to credit pre-sync scalar counts to (this device on boot, a
+  // synthetic key for an old file being restored).
+  function normalizeDeck(arr, dev) {
+    const now = touch();
+    return (arr || []).map(c => {
+      const legacyReviews = Number(c.reviews) || 0;
+      const legacyFails = Number(c.fails) || 0;
+      const card = {
+        id: c.id || nextId(), en: c.en || "", vi: c.vi || "", tag: c.tag || "",
+        prog: c.prog === undefined ? legacyReviews : Number(c.prog) || 0,
+        r: cleanMap(c.r), f: cleanMap(c.f),
+        t: Number(c.t) || 0, e: Number(c.e) || 0
+      };
+      // pre-sync card: fold its flat totals into the given device's tally
+      if (!c.r && legacyReviews) card.r[dev] = legacyReviews;
+      if (!c.f && legacyFails) card.f[dev] = legacyFails;
+      if (!card.t) card.t = totalReviews(card) ? now : 0;
+      if (!card.e) card.e = now;
+      if (c.del) card.del = Number(c.del) || now;
+      return card;
+    });
+  }
+  // Same idea for the ledger: flat pre-sync buckets get filed under `dev`.
+  function normalizeStats(s, dev) {
+    s = (s && typeof s === "object") ? s : {};
+    const out = { dev: {} };
+    if (s.dev && typeof s.dev === "object") {
+      for (const d in s.dev) {
+        const b = emptyBuckets(), src = s.dev[d] || {};
+        STAT_BUCKETS.forEach(k => b[k] = cleanMap(src[k]));
+        out.dev[d] = b;
+      }
+    } else if (STAT_BUCKETS.some(k => s[k])) {
+      const b = emptyBuckets();
+      STAT_BUCKETS.forEach(k => b[k] = cleanMap(s[k]));
+      out.dev[dev] = b;
+    }
+    return out;
+  }
+
+  // ---------- sync ----------
+  function payloadText() {
+    return JSON.stringify(
+      { version: 3, exported: new Date().toISOString(), device: settings.device, deck, stats },
+      null, 2);
+  }
+  function myLedgerTotal() { return sumMap(myLedger().daily); }
+  function markSynced() {
+    settings.lastSync = touch();
+    settings.syncMark = myLedgerTotal();
+    saveSettings(); renderSyncInfo();
+  }
+
+  // Read any exported file. Legacy (pre-sync) files have no per-device tallies,
+  // so their counts can't be attributed — those are restore-only, never merged.
+  function parseIncoming(text) {
+    const data = JSON.parse(text);
+    let rawDeck, rawStats, device;
+    if (Array.isArray(data)) { rawDeck = data; rawStats = null; }
+    else if (data && Array.isArray(data.deck)) { rawDeck = data.deck; rawStats = data.stats; device = data.device; }
+    else throw new Error("unrecognised file");
+    const legacy = !device || !rawDeck.some(c => c && c.r);
+    const key = device || "imported";
+    return {
+      deck: normalizeDeck(rawDeck, key),
+      stats: normalizeStats(rawStats, key),
+      legacy, device: key
+    };
+  }
+
+  function mergeCard(a, b) {
+    const out = { id: a.id, r: maxMerge(a.r, b.r), f: maxMerge(a.f, b.f) };
+    // wording: whoever edited last
+    const text = (b.e || 0) > (a.e || 0) ? b : a;
+    out.en = text.en; out.vi = text.vi; out.tag = text.tag;
+    out.e = Math.max(a.e || 0, b.e || 0);
+    // learning progress: whoever practised last (a fail there beats a pass here).
+    // dead heat falls to whichever side has done more reps.
+    let act;
+    if ((b.t || 0) > (a.t || 0)) act = b;
+    else if ((a.t || 0) > (b.t || 0)) act = a;
+    else act = totalReviews(b) > totalReviews(a) ? b : a;
+    out.prog = act.prog || 0;
+    out.t = Math.max(a.t || 0, b.t || 0);
+    // a deletion sticks unless the other device used the card after it happened
+    const del = Math.max(a.del || 0, b.del || 0);
+    const usedSince = Math.max(
+      a.del ? 0 : Math.max(a.t || 0, a.e || 0),
+      b.del ? 0 : Math.max(b.t || 0, b.e || 0));
+    if (del && del >= usedSince) out.del = del;
+    return out;
+  }
+
+  // what the user would actually notice about a card — used to report honest
+  // "n updated" counts rather than flagging key-order churn
+  function cardFingerprint(c) {
+    return [c.en, c.vi, c.tag, c.prog || 0, totalReviews(c), totalFails(c), c.del ? 1 : 0].join("|");
+  }
+
+  function ledgerTotal(b) { return b ? sumMap(b.daily) + sumMap(b.failDaily) : -1; }
+  function mergeStats(theirs) {
+    for (const d in theirs.dev) {
+      if (d === settings.device) {
+        // our own slice: keep the fuller copy, in case this browser was wiped
+        if (ledgerTotal(theirs.dev[d]) > ledgerTotal(stats.dev[d])) stats.dev[d] = theirs.dev[d];
+      } else {
+        stats.dev[d] = theirs.dev[d]; // that device's own tally is the authority
+      }
+    }
+  }
+
+  function doMerge(incoming) {
+    if (incoming.legacy) {
+      msg("That file predates sync, so its counts can't be merged safely — use “Replace everything” instead.");
+      return;
+    }
+    const byId = new Map();
+    deck.forEach(c => byId.set(c.id, c));
+    let added = 0, touched = 0, removed = 0;
+    incoming.deck.forEach(t => {
+      const mine = byId.get(t.id);
+      if (!mine) { byId.set(t.id, t); if (!isDeleted(t)) added++; return; }
+      const merged = mergeCard(mine, t);
+      if (isDeleted(merged) && !isDeleted(mine)) removed++;          // counted as a deletion,
+      else if (cardFingerprint(merged) !== cardFingerprint(mine)) touched++;  // not also as an update
+      byId.set(t.id, merged);
+    });
+    deck = Array.from(byId.values());
+    mergeStats(incoming.stats);
+    saveDeck(); saveStats(); markSynced();
+    rebuildFilter(); renderCounts();
+    lastId = null; showCard(pickNext());
+    msg(`Merged: ${added} new card${added !== 1 ? "s" : ""}, ${touched} updated`
+      + (removed ? `, ${removed} deleted` : "") + ".");
+  }
+
+  function doReplace(incoming) {
+    if (!confirm(`Replace EVERYTHING on this device with that file?\n\n`
+      + `Here now: ${liveDeck().length} cards, ${myLedgerTotal()} reviews logged on this device.\n`
+      + `In the file: ${incoming.deck.filter(c => !c.del).length} cards.\n\n`
+      + `Anything practised here and not yet synced will be lost. "Merge" is the safe option.`)) return;
+    deck = incoming.deck;
+    stats = incoming.stats;
+    saveDeck(); saveStats(); markSynced();
+    rebuildFilter(); renderCounts();
+    lastId = null; showCard(pickNext());
+    const n = liveDeck().length;
+    msg(`Replaced with ${n} card${n !== 1 ? "s" : ""}.`);
+  }
+
+  function readJsonFile(input, handler) {
+    const f = input.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try { handler(parseIncoming(r.result)); }
+      catch (err) { msg("Couldn't read that file — is it a sync .json?"); }
+    };
+    r.onerror = () => msg("Couldn't open that file. Try the copy-paste box below.");
+    r.readAsText(f); input.value = "";
+  }
+
+  $("export").onclick = () => {
+    const text = payloadText();
+    try {
+      const blob = new Blob([text], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "output-sync.json";  // fixed name: overwrites the same file every time
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      markSynced();
+      msg(`Exported ${liveDeck().length} cards as output-sync.json.`);
+    } catch (err) {
+      $("pasteJson").value = text;
+      msg("Download blocked here — the text is in the box below, copy it instead.");
+    }
+  };
+
+  $("fileMerge").onchange = e => readJsonFile(e.target, doMerge);
+  $("fileJson").onchange = e => readJsonFile(e.target, doReplace);
+
+  $("showJson").onclick = () => { $("pasteJson").value = payloadText(); msg("Text ready below."); };
+  $("copyJson").onclick = () => {
+    const ta = $("pasteJson");
+    ta.value = payloadText();
+    ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (err) {}  // works without https, unlike the clipboard API
+    if (!ok && navigator.clipboard) {
+      navigator.clipboard.writeText(ta.value).then(() => { markSynced(); msg("Copied."); },
+        () => msg("Couldn't copy automatically — the text is selected, use long-press → Copy."));
+      return;
+    }
+    if (ok) { markSynced(); msg("Copied — paste it somewhere you can reach from the other device."); }
+    else msg("Couldn't copy automatically — the text is selected, use long-press → Copy.");
+  };
+  $("mergePasted").onclick = () => {
+    const text = $("pasteJson").value.trim();
+    if (!text) { msg("Paste a sync file into the box first."); return; }
+    try { doMerge(parseIncoming(text)); $("pasteJson").value = ""; }
+    catch (err) { msg("That text isn't valid sync JSON — make sure you copied all of it."); }
+  };
+  $("clearPasted").onclick = () => { $("pasteJson").value = ""; msg(""); };
+
+  function renderSyncInfo() {
+    const since = myLedgerTotal() - (settings.syncMark || 0);
+    let when = "never synced from here";
+    if (settings.lastSync) {
+      const days = Math.floor((Date.now() - settings.lastSync) / 86400000);
+      when = "last synced " + (days === 0 ? "today" : days === 1 ? "yesterday" : days + " days ago");
+    }
+    const unsaved = since > 0
+      ? ` · <span class="warn">${since} review${since !== 1 ? "s" : ""} here since</span>`
+      : "";
+    $("syncInfo").innerHTML = `This device: <b>${escapeHtml(settings.device)}</b> · `
+      + `${liveDeck().length} cards · ${when}${unsaved}`;
+  }
+
+  $("resetCounts").onclick = () => {
+    if (!confirm("Reset every card's total reviews and learning progress to 0?\n\nFail counts and your Stats history are kept.\n\nNote: this only resets THIS device. Merging the other device back in will bring its counts with it.")) return;
+    deck.forEach(c => { c.r = {}; c.prog = 0; c.t = touch(); }); saveDeck();
+    renderCounts(); if (current) showCard(current);
+    msg("Review counts and learning progress reset.");
+  };
+  $("clearDeck").onclick = () => {
+    if (!confirm("Delete ALL cards permanently? Export first if unsure.\n\nThe deletions will also travel to your other device next time you merge.")) return;
+    const now = touch();
+    deck.forEach(c => { if (!c.del) c.del = now; });  // tombstones, so the deletes sync
+    saveDeck(); rebuildFilter(); renderCounts();
+    lastId = null; current = null; showCard(null);
+    msg("Deck cleared.");
+  };
+
+  filterEl.onchange = () => {
+    settings.filter = filterEl.value; saveSettings();
+    renderCounts(); lastId = null; showCard(pickNext());
+  };
+  $("statusFilter").onchange = () => {
+    settings.status = $("statusFilter").value; saveSettings();
+    renderCounts(); lastId = null; showCard(pickNext());
+  };
+
+  // ---------- browse ----------
+  let browseFilter = "__all__";
+
+  function browseRows() {
+    const q = $("search").value.trim().toLowerCase();
+    return deck.filter(c => {
+      if (isDeleted(c)) return false;
+      if (browseFilter !== "__all__" && !cardTags(c).includes(browseFilter)) return false;
+      if (q && !((c.en || "").toLowerCase().includes(q) || (c.vi || "").toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
+
+  function renderBrowseList() {
+    const rows = browseRows();
+    const list = $("blist");
+    const total = liveDeck().length;
+    $("bcount").textContent = `${rows.length} of ${total} card${total !== 1 ? "s" : ""}`;
+    if (rows.length === 0) {
+      list.innerHTML = `<div id="bempty">${total === 0 ? "No cards yet." : "Nothing matches."}</div>`;
+      return;
+    }
+    list.innerHTML = rows.map(c => {
+      const revs = totalReviews(c), fails = totalFails(c);
+      return `
+      <div class="brow" data-id="${c.id}">
+        <div class="txt">
+          <div class="ben">${escapeHtml(c.en) || "<i>(empty)</i>"}</div>
+          <div class="bvi">${escapeHtml(c.vi) || "<i>(empty)</i>"}</div>
+          <div class="bmeta">${cardTags(c).map(t => `<span class="btag">${escapeHtml(t)}</span>`).join("")}${isMature(c) ? "★ mature" : `learning ${c.prog || 0}/${settings.threshold}`} · ${revs} review${revs !== 1 ? "s" : ""}${fails > 0 ? ` · <span class="failtag">${fails} fail${fails !== 1 ? "s" : ""}</span>` : ""}</div>
+        </div>
+        <div class="bbtns">
+          <button class="edit">Edit</button>
+          <button class="del">Delete</button>
+        </div>
+      </div>`; }).join("");
+  }
+
+  $("blist").addEventListener("click", e => {
+    const row = e.target.closest(".brow"); if (!row) return;
+    const id = row.getAttribute("data-id");
+    if (e.target.classList.contains("edit")) openEdit(id);
+    else if (e.target.classList.contains("del")) {
+      const c = cardById(id); if (!c) return;
+      if (!confirm(`Delete this card?\n\n${c.en}\n${c.vi}`)) return;
+      deleteCard(id);
+      renderBrowseList();
+    }
+  });
+
+  function openBrowse() {
+    $("bfilter").innerHTML = '<option value="__all__">All tags</option>' + tagOptions();
+    if (browseFilter !== "__all__" && !tagList().includes(browseFilter)) browseFilter = "__all__";
+    $("bfilter").value = browseFilter;
+    renderBrowseList();
+    $("browse").classList.add("open");
+  }
+  function closeBrowse() {
+    $("browse").classList.remove("open");
+    rebuildFilter(); renderCounts();
+    if (!current || !cardById(current.id) || !activeCards().some(c => c.id === current.id))
+      { lastId = null; showCard(pickNext()); }
+    else showCard(current); // reflect any edits to the current card
+  }
+  $("browseBtn").onclick = openBrowse;
+  $("closeBrowse").onclick = closeBrowse;
+  $("search").oninput = renderBrowseList;
+  $("bfilter").onchange = e => { browseFilter = e.target.value; renderBrowseList(); };
+
+  // ---------- stats ----------
+  function fmtDay(dayStr) {
+    const d = new Date(dayStr + "T00:00:00"); // parse as local
+    if (isNaN(d)) return dayStr;
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+  function barRows(pairs) { // pairs: [[label, value], ...] already sorted
+    const max = pairs.reduce((m, p) => Math.max(m, p[1]), 0) || 1;
+    return pairs.map(([label, val]) => `
+      <div class="statrow">
+        <div class="statlbl">${escapeHtml(label)}</div>
+        <div class="stattrack"><div class="statfill" style="width:${Math.round(val / max * 100)}%"></div></div>
+        <div class="statval">${val}</div>
+      </div>`).join("");
+  }
+
+  function sumVals(obj) { return Object.keys(obj).reduce((s, k) => s + obj[k], 0); }
+  function tagPairsOf(obj) { return Object.entries(obj).filter(p => p[1] > 0).sort((a, b) => b[1] - a[1]); }
+  function dayPairsOf(obj) {
+    return Object.keys(obj).filter(k => obj[k] > 0).sort().reverse().slice(0, 60).map(k => [fmtDay(k), obj[k]]);
+  }
+
+  function renderStats() {
+    // every device's ledger, added together
+    const daily = rolledUp("daily"), byTag = rolledUp("byTag"),
+          failDaily = rolledUp("failDaily"), failByTag = rolledUp("failByTag");
+    const total = sumVals(daily);
+    const today = daily[todayStr()] || 0;
+    const activeDays = Object.keys(daily).filter(k => daily[k] > 0).length;
+    const totalFails = sumVals(failDaily);
+    const failsToday = failDaily[todayStr()] || 0;
+
+    if (total === 0) {
+      $("sbody").innerHTML = `<div id="sempty">No reviews logged yet. Practice some cards and your totals will show up here.</div>`;
+      return;
+    }
+
+    const tagPairs = tagPairsOf(byTag);
+    const dayPairs = dayPairsOf(daily);
+    const failTagPairs = tagPairsOf(failByTag);
+    const failDayPairs = dayPairsOf(failDaily);
+    const devices = Object.keys(stats.dev).filter(d => ledgerTotal(stats.dev[d]) > 0);
+    const devNote = devices.length > 1
+      ? `<div class="statsec">Devices</div>` + barRows(devices
+          .map(d => [d === settings.device ? d + " (this one)" : d, sumMap(stats.dev[d].daily)])
+          .sort((a, b) => b[1] - a[1]))
+      : "";
+    const multiNote = `<div class="note" style="margin:-4px 0 10px">A card with several tags counts toward each, so these can add up to more than the total.</div>`;
+
+    $("sbody").innerHTML = `
+      <div class="bignums">
+        <div><span class="bn">${total}</span><span class="bnl">total reviews</span></div>
+        <div><span class="bn">${today}</span><span class="bnl">today</span></div>
+        <div><span class="bn">${activeDays}</span><span class="bnl">days practiced</span></div>
+        <div><span class="bn failtag">${totalFails}</span><span class="bnl">total fails</span></div>
+        <div><span class="bn failtag">${failsToday}</span><span class="bnl">fails today</span></div>
+      </div>
+      <div class="statsec">Reviews by tag</div>
+      ${multiNote}
+      ${tagPairs.length ? barRows(tagPairs) : '<div id="sempty">No tagged reviews yet.</div>'}
+      <div class="statsec">Reviews by day (most recent first)</div>
+      ${barRows(dayPairs)}
+      <div class="statsec">Fails by tag</div>
+      ${failTagPairs.length ? barRows(failTagPairs) : '<div id="sempty">No fails yet — nice.</div>'}
+      <div class="statsec">Fails by day (most recent first)</div>
+      ${failDayPairs.length ? barRows(failDayPairs) : '<div id="sempty">No fails yet — nice.</div>'}
+      ${devNote}`;
+  }
+
+  function openStats() { renderStats(); $("stats").classList.add("open"); }
+  function closeStats() { $("stats").classList.remove("open"); }
+  $("statsBtn").onclick = openStats;
+  $("closeStats").onclick = closeStats;
+  $("resetStats").onclick = () => {
+    if (!confirm("Clear your activity history (review and fail totals, per-tag and per-day counts) for ALL devices?\n\nThis does NOT touch your cards or their review counts.")) return;
+    stats = { dev: {} };
+    saveStats();
+    renderStats();
+  };
+
+  // ---------- edit modal ----------
+  let editingId = null;
+
+  function openEdit(id) {
+    const c = cardById(id); if (!c) return;
+    editingId = id;
+    $("eEn").value = c.en; $("eVi").value = c.vi; $("eTag").value = c.tag || "";
+    const revs = totalReviews(c), fails = totalFails(c);
+    $("eReviews").textContent = `${revs} total review${revs !== 1 ? "s" : ""} · `
+      + (isMature(c) ? "★ mature" : `learning ${c.prog || 0}/${settings.threshold}`)
+      + ` · ${fails} fail${fails !== 1 ? "s" : ""}`;
+    $("editModal").classList.add("open");
+    $("eEn").focus();
+  }
+  function closeEdit() { $("editModal").classList.remove("open"); editingId = null; }
+
+  function saveEdit() {
+    const c = cardById(editingId); if (!c) { closeEdit(); return; }
+    const en = $("eEn").value.trim(), vi = $("eVi").value.trim(),
+          tag = normalizeTags($("eTag").value);
+    if (en !== c.en || vi !== c.vi || tag !== c.tag) c.e = touch(); // only stamp real changes
+    c.en = en; c.vi = vi; c.tag = tag;
+    saveDeck();
+    closeEdit();
+    afterDeckEdit();
+  }
+  // deletes leave a tombstone rather than dropping the row, so the deletion
+  // can travel to the other device on the next merge
+  function deleteCard(id) {
+    const wasCurrent = current && current.id === id;
+    const c = cardById(id);
+    if (c) { c.del = touch(); saveDeck(); }
+    if (wasCurrent) { lastId = null; current = null; }
+    afterDeckEdit(true);
+  }
+  function deleteFromModal() {
+    const c = cardById(editingId); if (!c) { closeEdit(); return; }
+    if (!confirm(`Delete this card?\n\n${c.en}\n${c.vi}`)) return;
+    const id = editingId; closeEdit();
+    deleteCard(id);
+    if ($("browse").classList.contains("open")) renderBrowseList();
+  }
+
+  // refresh everything after an edit/delete; keep practice view in sync
+  function afterDeckEdit() {
+    rebuildFilter(); renderCounts();
+    if ($("browse").classList.contains("open")) renderBrowseList();
+    if (!current || !cardById(current.id) || !activeCards().some(c => c.id === current.id))
+      { lastId = null; showCard(pickNext()); }
+    else showCard(current);
+  }
+
+  $("eSave").onclick = saveEdit;
+  $("eCancel").onclick = closeEdit;
+  $("eDelete").onclick = deleteFromModal;
+  $("editModal").addEventListener("click", e => { if (e.target === $("editModal")) closeEdit(); });
+
+  $("editBtn").onclick = e => { e.stopPropagation(); if (current) openEdit(current.id); };
+  $("failBtn").onclick = e => { e.stopPropagation(); fail(); };
+
+  // ---------- input: space / enter / tap ----------
+  stage.addEventListener("click", advance);
+  document.addEventListener("keydown", e => {
+    if ($("editModal").classList.contains("open")) { if (e.key === "Escape") closeEdit(); return; }
+    if ($("browse").classList.contains("open")) { if (e.key === "Escape") closeBrowse(); return; }
+    if ($("stats").classList.contains("open")) { if (e.key === "Escape") closeStats(); return; }
+    if ($("menu").classList.contains("open")) { if (e.key === "Escape") closeMenu(); return; }
+    if ((e.key === "f" || e.key === "F") && revealed) { e.preventDefault(); fail(); return; }
+    if (e.code === "Space" || e.key === "Enter") { e.preventDefault(); advance(); }
+  });
+
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, m => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+
+  // ---------- storage health ----------
+  // Some ways of opening this file accept writes and then quietly bin them:
+  // Android's content:// handler (a fresh, empty box every time), private
+  // windows, and browsers set to block site data. Say so at boot rather than
+  // letting a practice session evaporate on close.
+  function storageWorks() {
+    try {
+      localStorage.setItem("__probe", "1");
+      const ok = localStorage.getItem("__probe") === "1";
+      localStorage.removeItem("__probe");
+      return ok;
+    } catch (e) { return false; }
+  }
+  function warnBanner(html) { const w = $("warn"); w.innerHTML = html; w.classList.add("show"); }
+
+  if (!storageWorks()) {
+    warnBanner(`<b>⚠ Nothing here is being saved.</b> This browser is refusing to store data for
+      this page, so every card and review will disappear when you close it. Check that you're not
+      in a private/incognito window and that site data isn't blocked, or open the file from a
+      different browser.`);
+  } else if (location.protocol === "content:") {
+    warnBanner(`<b>⚠ Opened the wrong way — your deck won't stick.</b> Android handed this page a
+      throwaway <code>content://</code> address, which gets an empty storage box every time.
+      Open it through a <code>file:///</code> address or a web address instead, then bookmark
+      <i>that</i>.`);
+  }
+
+  // ---------- boot ----------
+  if (typeof settings.threshold !== "number") settings.threshold = 10;
+  if (!settings.status) settings.status = "__all__";
+  if (!settings.device) { settings.device = newDeviceId(); saveSettings(); }
+  $("statusFilter").value = settings.status;
+
+  // Migrate to the sync-capable shape. Everything already here is credited to
+  // this device, so no count changes and nothing is reset.
+  if (!stats || typeof stats !== "object") stats = { dev: {} };
+  if (!stats.dev) { stats = normalizeStats(stats, settings.device); saveStats(); }
+  let migrated = false;
+  deck.forEach(c => {
+    if (c.prog === undefined) { c.prog = Number(c.reviews) || 0; migrated = true; }
+    if (!c.r) {                                   // pre-sync card: fold the flat totals in
+      c.r = {}; if (Number(c.reviews) > 0) c.r[settings.device] = Number(c.reviews);
+      c.f = {}; if (Number(c.fails) > 0) c.f[settings.device] = Number(c.fails);
+      delete c.reviews; delete c.fails;
+      c.t = totalReviews(c) ? touch() : 0;
+      c.e = touch();
+      migrated = true;
+    }
+  });
+  // drop tombstones old enough that both devices have long since seen them
+  const cutoff = touch() - TOMBSTONE_TTL;
+  const before = deck.length;
+  deck = deck.filter(c => !c.del || c.del > cutoff);
+  if (deck.length !== before) migrated = true;
+  if (migrated) saveDeck();
+
+  applyTheme();
+  rebuildFilter();
+  renderCounts();
+  showCard(pickNext());
+
+  // Offline support, only where it's allowed. Service workers need a secure
+  // origin, so this is a no-op when the file is opened straight off disk —
+  // the app runs identically either way.
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
