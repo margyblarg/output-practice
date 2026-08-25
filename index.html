@@ -93,6 +93,9 @@
   #menu button.danger { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
   #menu input[type=number] { width:70px; font-size:14px; padding:5px;
     background:var(--field-bg); color:var(--fg); border:1px solid var(--line); border-radius:4px; }
+  .bandrow { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  .bandrow label { display:inline-flex; align-items:center; gap:7px; font-size:15px; }
+  .bandrow input[type=number] { width:76px; }
   #menu label.switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:15px; }
   #menu input[type=file] { display:none; }
   #menu .row { margin:8px 0; }
@@ -248,6 +251,8 @@
     .sfoot { padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
     .statlbl { width:96px; }
     #menu button, #menu label.filebtn { min-height:42px; padding:10px 14px; }
+    #menu input[type=number] { min-height:40px; font-size:16px; }  /* 16px: stops iOS/Android zooming on focus */
+    .bandrow { gap:12px 18px; }
     .brow .bbtns button { min-height:38px; padding:0 12px; }
   }
 </style>
@@ -291,11 +296,18 @@
   <div class="row">
     <label class="switch"><input type="checkbox" id="darkToggle"> Dark mode</label>
   </div>
-  <div class="row">
-    Mature at <input type="number" id="threshold" min="1" max="999"> reviews.
-    <span class="note">(How many reviews until a card counts as "learned". Higher = it keeps showing often for longer.)</span>
+  <h2>Card ages</h2>
+  <p class="note">Progress needed to enter each band. A card starts at 0, gains 1 per pass, and drops back to 0 when you fail it. <b>New</b> isn't listed because it means something different — never reviewed at all.</p>
+  <div class="row bandrow">
+    <label>Young at <input type="number" id="youngAt" min="1" max="9999"></label>
+    <label>Mature at <input type="number" id="matureAt" min="2" max="9999"></label>
+    <label>Elderly at <input type="number" id="elderlyAt" min="3" max="9999"></label>
   </div>
   <p class="note" id="bandNote"></p>
+  <div class="row">
+    <button id="bandsReset">Reset to 5 / 10 / 20</button>
+    <span class="note">Mature also sets how hard the picker favours cards you haven't learned yet.</span>
+  </div>
 
   <h2>Sync &amp; backup</h2>
   <div id="syncInfo"></div>
@@ -410,7 +422,7 @@
   //   e      last text/tag edit (ms). Decides whose wording wins.
   //   del    tombstone timestamp — deleted, but kept so the delete can travel.
   let deck = load(DECK_KEY, []);
-  let settings = load(SET_KEY, { threshold: 10, filter: "__all__" });
+  let settings = load(SET_KEY, { youngAt: 5, matureAt: 10, elderlyAt: 20 });
   // activity ledger, kept separate from card review counts so resets never touch it.
   // Bucketed per device: stats.dev[deviceId] = {daily,byTag,failDaily,failByTag}
   let stats = load(STATS_KEY, { dev: {} });
@@ -518,14 +530,15 @@
   const AGE_LABEL = { new: "new", learning: "learning", young: "young",
                       mature: "★ mature", elderly: "★★ elderly" };
 
-  // band edges; clamped so they stay strictly increasing even at tiny thresholds
+  // band edges, set by hand in the Menu. Read defensively and re-sorted here so
+  // a hand-edited or restored settings blob can never produce overlapping bands.
   function bands() {
-    const T = Math.max(1, settings.threshold);
-    const b1 = Math.max(1, Math.round(T / 2));
-    const b2 = Math.max(b1 + 1, T);
-    const b3 = Math.max(b2 + 1, T * 2);
+    let b1 = Math.max(1, Math.round(Number(settings.youngAt)) || 5);
+    let b2 = Math.max(b1 + 1, Math.round(Number(settings.matureAt)) || 10);
+    let b3 = Math.max(b2 + 1, Math.round(Number(settings.elderlyAt)) || 20);
     return { b1, b2, b3 };
   }
+  function matureAt() { return bands().b2; }
   function ageOf(c) {
     if (totalReviews(c) === 0) return "new";     // never seen, regardless of prog
     const p = c.prog || 0, B = bands();
@@ -549,7 +562,7 @@
     const a = ageOf(c);
     if (a === "new") return AGE_LABEL.new;
     if (isMatured(c)) return AGE_LABEL[a];
-    return `${AGE_LABEL[a]} ${c.prog || 0}/${settings.threshold}`;
+    return `${AGE_LABEL[a]} ${c.prog || 0}/${matureAt()}`;
   }
 
   // ---------- tag selection ----------
@@ -598,7 +611,7 @@
     const pool = activeCards();
     if (pool.length === 0) return null;
     if (pool.length === 1) return pool[0];
-    const T = settings.threshold;
+    const T = matureAt();
     function weight(c) { return (T + 1) - Math.min(c.prog || 0, T); } // T+1 (new/failed) .. 1 (mature)
     for (let attempt = 0; attempt < 6; attempt++) {
       let total = 0;
@@ -837,16 +850,17 @@
     if (m) m.setAttribute("content", settings.dark ? "#161616" : "#ffffff");
   }
 
-  // spell out where the five age bands land, since they all follow from one number
+  // spell the bands back out as plain ranges, with a live count of what's in each
   function renderBandNote() {
+    const live = liveDeck();
+    const n = {}; AGE_KEYS.forEach(k => n[k] = 0);
+    live.forEach(c => n[ageOf(c)]++);
     $("bandNote").innerHTML = "That gives: "
-      + AGES.map(a => `<b>${a.label}</b> ${escapeHtml(ageRange(a.key))}`).join(" · ")
-      + ". A card you fail drops back to 0 progress, so it re-enters Learning.";
+      + AGES.map(a => `<b>${a.label}</b> ${escapeHtml(ageRange(a.key))} <span class="fcnt">(${n[a.key]})</span>`).join(" · ");
   }
 
   function openMenu() {
-    $("threshold").value = settings.threshold;
-    renderBandNote();
+    renderBands();
     $("darkToggle").checked = !!settings.dark;
     $("msg").textContent = "";
     renderSyncInfo();
@@ -887,14 +901,57 @@
     r.readAsText(f); e.target.value = "";
   };
 
-  $("threshold").onchange = e => {
-    let v = parseInt(e.target.value, 10);
-    if (!Number.isFinite(v) || v < 1) v = 10;
-    settings.threshold = v; saveSettings();
-    renderBandNote();                // bands all shift with the threshold
+  // The value you just typed always wins; its neighbours shift by the minimum
+  // needed to keep Young < Mature < Elderly, so editing never silently reverts.
+  function setBand(which, raw) {
+    // A number input hands back "" for anything it can't parse, and Number("")
+    // is 0 — so treat blank as "left it alone", not as zero.
+    const str = String(raw == null ? "" : raw).trim();
+    if (str === "") { renderBands(); return; }
+    let v = Math.round(Number(str));
+    if (!Number.isFinite(v)) { renderBands(); return; }
+    let { b1, b2, b3 } = bands();
+    if (which === "young") {
+      b1 = Math.max(1, v);
+      b2 = Math.max(b2, b1 + 1);
+      b3 = Math.max(b3, b2 + 1);
+    } else if (which === "mature") {
+      b2 = Math.max(2, v);
+      b1 = Math.min(b1, b2 - 1);
+      b3 = Math.max(b3, b2 + 1);
+    } else {
+      b3 = Math.max(3, v);
+      b2 = Math.min(b2, b3 - 1);
+      b1 = Math.min(b1, b2 - 1);
+    }
+    settings.youngAt = b1; settings.matureAt = b2; settings.elderlyAt = b3;
+    settings.bandsUpdated = touch();   // so the newer settings win when devices merge
+    saveSettings();
+    renderBands();
     renderCounts(); renderFilterBtn();
-    if (current) showCard(current); // refresh counter label
-    msg("Threshold set to " + v + ".");
+    if ($("filters").classList.contains("open")) renderFilters();
+    if (current) showCard(current);    // refresh the counter label
+    msg(`Bands set: Young ${b1} · Mature ${b2} · Elderly ${b3}.`);
+  }
+
+  // push the current values back into the three boxes and redraw the explainer
+  function renderBands() {
+    const B = bands();
+    $("youngAt").value = B.b1; $("matureAt").value = B.b2; $("elderlyAt").value = B.b3;
+    renderBandNote();
+  }
+
+  $("youngAt").onchange   = e => setBand("young", e.target.value);
+  $("matureAt").onchange  = e => setBand("mature", e.target.value);
+  $("elderlyAt").onchange = e => setBand("elderly", e.target.value);
+  $("bandsReset").onclick = () => {
+    settings.youngAt = 5; settings.matureAt = 10; settings.elderlyAt = 20;
+    settings.bandsUpdated = touch();
+    saveSettings();
+    renderBands(); renderCounts(); renderFilterBtn();
+    if ($("filters").classList.contains("open")) renderFilters();
+    if (current) showCard(current);
+    msg("Bands reset to 5 / 10 / 20.");
   };
 
   function cleanMap(m) {
@@ -944,10 +1001,30 @@
   }
 
   // ---------- sync ----------
+  // The band boundaries ride along with the deck: they describe the study
+  // system, not this browser, so both devices should agree on them.
+  function bandPayload() {
+    const B = bands();
+    return { youngAt: B.b1, matureAt: B.b2, elderlyAt: B.b3, updated: settings.bandsUpdated || 0 };
+  }
   function payloadText() {
     return JSON.stringify(
-      { version: 3, exported: new Date().toISOString(), device: settings.device, deck, stats },
+      { version: 3, exported: new Date().toISOString(), device: settings.device,
+        bands: bandPayload(), deck, stats },
       null, 2);
+  }
+  // adopt the incoming bands only when they were changed more recently than ours
+  function mergeBands(incoming) {
+    if (!incoming || typeof incoming !== "object") return false;
+    const theirs = Number(incoming.updated) || 0;
+    if (theirs <= (settings.bandsUpdated || 0)) return false;
+    const y = Math.round(Number(incoming.youngAt)), m = Math.round(Number(incoming.matureAt)),
+          e = Math.round(Number(incoming.elderlyAt));
+    if (!(y >= 1 && m > y && e > m)) return false;
+    settings.youngAt = y; settings.matureAt = m; settings.elderlyAt = e;
+    settings.bandsUpdated = theirs;
+    saveSettings();
+    return true;
   }
   function myLedgerTotal() { return sumMap(myLedger().daily); }
   function markSynced() {
@@ -962,14 +1039,16 @@
     const data = JSON.parse(text);
     let rawDeck, rawStats, device;
     if (Array.isArray(data)) { rawDeck = data; rawStats = null; }
-    else if (data && Array.isArray(data.deck)) { rawDeck = data.deck; rawStats = data.stats; device = data.device; }
+    else if (data && Array.isArray(data.deck)) {
+      rawDeck = data.deck; rawStats = data.stats; device = data.device; var rawBands = data.bands;
+    }
     else throw new Error("unrecognised file");
     const legacy = !device || !rawDeck.some(c => c && c.r);
     const key = device || "imported";
     return {
       deck: normalizeDeck(rawDeck, key),
       stats: normalizeStats(rawStats, key),
-      legacy, device: key
+      bands: rawBands, legacy, device: key
     };
   }
 
@@ -1032,11 +1111,14 @@
     });
     deck = Array.from(byId.values());
     mergeStats(incoming.stats);
+    const bandsChanged = mergeBands(incoming.bands);
     saveDeck(); saveStats(); markSynced();
     rebuildFilter(); renderCounts();
+    if ($("menu").classList.contains("open")) renderBands();
     lastId = null; showCard(pickNext());
     msg(`Merged: ${added} new card${added !== 1 ? "s" : ""}, ${touched} updated`
-      + (removed ? `, ${removed} deleted` : "") + ".");
+      + (removed ? `, ${removed} deleted` : "")
+      + (bandsChanged ? `, card ages updated to ${settings.youngAt}/${settings.matureAt}/${settings.elderlyAt}` : "") + ".");
   }
 
   function doReplace(incoming) {
@@ -1046,8 +1128,10 @@
       + `Anything practised here and not yet synced will be lost. "Merge" is the safe option.`)) return;
     deck = incoming.deck;
     stats = incoming.stats;
+    if (incoming.bands) { settings.bandsUpdated = 0; mergeBands(incoming.bands); }  // take the file's bands wholesale
     saveDeck(); saveStats(); markSynced();
     rebuildFilter(); renderCounts();
+    if ($("menu").classList.contains("open")) renderBands();
     lastId = null; showCard(pickNext());
     const n = liveDeck().length;
     msg(`Replaced with ${n} card${n !== 1 ? "s" : ""}.`);
@@ -1392,7 +1476,17 @@
   }
 
   // ---------- boot ----------
-  if (typeof settings.threshold !== "number") settings.threshold = 10;
+  // Migrate the old single "mature at N" dial into three hand-set boundaries,
+  // reproducing exactly the bands that dial used to derive.
+  if (typeof settings.matureAt !== "number") {
+    const T = typeof settings.threshold === "number" && settings.threshold > 0 ? settings.threshold : 10;
+    settings.youngAt = Math.max(1, Math.round(T / 2));
+    settings.matureAt = Math.max(settings.youngAt + 1, T);
+    settings.elderlyAt = Math.max(settings.matureAt + 1, T * 2);
+    settings.bandsUpdated = touch();
+    delete settings.threshold;
+    saveSettings();
+  }
   if (!settings.device) { settings.device = newDeviceId(); saveSettings(); }
 
   // Migrate the old single-select dropdowns to the multi-select model. The old
