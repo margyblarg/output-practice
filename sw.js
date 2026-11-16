@@ -2,7 +2,7 @@
 // Network-first for the page itself, so a re-upload reaches you next time you
 // have signal; cache-first for the icons, which never change.
 // Bump CACHE whenever the app changes to retire the old copy.
-const CACHE = "output-practice-v1";
+const CACHE = "output-practice-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
