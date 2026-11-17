@@ -572,12 +572,15 @@
     return B.b3 + "+ progress";
   }
   function isMatured(c) { const a = ageOf(c); return a === "mature" || a === "elderly"; }
-  // label for the card counter / list rows: age name, plus progress while still climbing
+  // label for the card counter / list rows: age name, plus progress toward the
+  // NEXT band (learning → young, young → mature, mature → elderly).
+  // Elderly is the top, so it shows no target.
   function ageLabel(c) {
     const a = ageOf(c);
-    if (a === "new") return AGE_LABEL.new;
-    if (isMatured(c)) return AGE_LABEL[a];
-    return `${AGE_LABEL[a]} ${c.prog || 0}/${matureAt()}`;
+    if (a === "new" || a === "elderly") return AGE_LABEL[a];
+    const B = bands();
+    const next = a === "learning" ? B.b1 : a === "young" ? B.b2 : B.b3;
+    return `${AGE_LABEL[a]} ${c.prog || 0}/${next}`;
   }
 
   // ---------- tag selection ----------
@@ -776,7 +779,7 @@
     const tags = cardTags(c);
     tagEl.innerHTML = tags.map(t => `<span class="tagchip">${escapeHtml(t)}</span>`).join("");
     tagEl.style.display = tags.length ? "inline" : "none";
-    const learn = isMatured(c) ? `<span id="mature">${AGE_LABEL[ageOf(c)]}</span>` : ageLabel(c);
+    const learn = isMatured(c) ? `<span id="mature">${escapeHtml(ageLabel(c))}</span>` : ageLabel(c);
     const fails = totalFails(c);
     ctrEl.innerHTML = `${learn} · ${totalReviews(c)} total`
       + (fails > 0 ? ` · <span class="failtag">✗ ${fails}</span>` : "");
