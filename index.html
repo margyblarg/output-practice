@@ -49,8 +49,9 @@
     border:1px solid var(--line); border-radius:4px; }
   #bar .stat { white-space:nowrap; }
   #bar .spacer { flex:1; }
-  #menuBtn { background:none; border:1px solid var(--line); border-radius:6px;
+  #bar button { background:none; border:1px solid var(--line); border-radius:6px;
     padding:4px 10px; cursor:pointer; font-size:14px; color:var(--fg); }
+  #bar button:disabled { opacity:.35; cursor:default; }
 
   /* main card area */
   #stage {
@@ -157,6 +158,12 @@
     border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
   .erow button#eSave { background:var(--accent); color:#fff; border-color:var(--accent); }
   .erow button.danger { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
+  #eReviews.ok { color:var(--accent); }
+  #eReviews.warn { color:var(--danger-fg); }
+  #pasteInfo { display:block; margin-top:6px; min-height:16px; }
+  #pasteInfo .warn { color:var(--danger-fg); }
+  #addFromBrowse { font-size:14px; padding:6px 12px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
 
   /* stats overlay */
   #stats { position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; }
@@ -228,7 +235,9 @@
     #bar .barlabel, #bar .spacer { display:none; }
     #bar #counts { flex-basis:100%; order:-1; text-align:center; font-size:12px; }
     #bar select { flex:1 1 0; min-width:0; font-size:13px; padding:9px 4px; }
-    #bar button { min-height:40px; padding:0 11px; font-size:13px; }
+    #bar button { min-height:40px; padding:0 9px; font-size:13px; flex:1 1 auto; }
+    #undoBtn, #addBtn { font-size:18px; }
+    #addFromBrowse { min-height:38px; }
 
     #en { font-size: clamp(28px, 7.2vw, 40px); }
     #vi { font-size: clamp(24px, 6.2vw, 36px); }
@@ -255,6 +264,7 @@
     .bandrow { gap:12px 18px; }
     .brow .bbtns button { min-height:38px; padding:0 12px; }
   }
+  @media (max-width: 440px) { #bar .lbl { display:none; } }
 </style>
 </head>
 <body>
@@ -265,6 +275,8 @@
   <button id="filterBtn">Filter</button>
   <span class="stat" id="counts"></span>
   <span class="spacer"></span>
+  <button id="undoBtn" title="Undo your last answer (Z)" disabled aria-label="Undo">↶<span class="lbl"> Undo</span></button>
+  <button id="addBtn" title="Add a card (A)" aria-label="Add card">+<span class="lbl"> Add</span></button>
   <button id="browseBtn">Browse</button>
   <button id="statsBtn">Stats</button>
   <button id="menuBtn">Menu</button>
@@ -284,8 +296,9 @@
  <div class="wrap">
   <button id="closeMenu">Close</button>
   <h2>Add cards</h2>
-  <p class="note">One card per line, tab-separated: <b>English⇥Vietnamese⇥Tags</b>. Tags optional; put several in one card separated by <b>;</b> (e.g. <code>greetings;cafe</code>). Blank lines and lines starting with <b>#</b> are ignored. Pasting from a spreadsheet gives you tabs automatically.</p>
-  <textarea id="paste" placeholder="Hello&#9;Xin chào&#9;greetings&#10;How are you?&#9;Bạn khỏe không?&#9;greetings"></textarea>
+  <p class="note">For a single card, use <b>+ Add</b> in the bottom bar. For a batch: one card per line, <b>English | Vietnamese | Tags</b>. Split the parts with a <b>tab</b>, <b>|</b>, <b>=</b> or a dash with spaces round it (<b> - </b>). Tags are optional; put several in one card separated by <b>;</b> (e.g. <code>greetings;cafe</code>). Blank lines and lines starting with <b>#</b> are ignored. Exact duplicates of cards you already have are skipped, and lines that can't be read are left in the box for you to fix.</p>
+  <textarea id="paste" placeholder="Hello | Xin chào | greetings&#10;How are you? = Bạn khỏe không?&#10;Thank you - Cảm ơn - greetings;polite"></textarea>
+  <span id="pasteInfo" class="note"></span>
   <div class="row">
     <button id="addPaste">Add pasted cards</button>
     <label class="filebtn">Import .txt file<input type="file" id="fileTxt" accept=".txt,.tsv,text/plain"></label>
@@ -366,10 +379,11 @@
 <div id="browse">
  <div class="bwrap">
   <div class="bhead">
-    <input id="search" placeholder="Search English or Vietnamese…">
+    <input id="search" placeholder="Search — accents optional…" autocomplete="off">
     <select id="bfilter"><option value="__all__">All tags</option></select>
     <span id="bcount" class="note"></span>
     <span class="bspacer"></span>
+    <button id="addFromBrowse">+ Add</button>
     <button id="closeBrowse">Close</button>
   </div>
   <div id="blist"></div>
@@ -749,7 +763,7 @@
       $("divider").style.display = "none";
       emptyEl.style.display = "block";
       emptyEl.innerHTML =
-          liveDeck().length === 0 ? "No cards yet. Open <b>Menu</b> to paste or import a batch."
+          liveDeck().length === 0 ? "No cards yet. Tap <b>+ Add</b> for one, or open <b>Menu</b> to paste a batch."
         : settings.ages.length === 0 ? "No card ages ticked. Open <b>Filter</b> and pick at least one."
         : (settings.tagMode === "some" && settings.tags.length === 0)
             ? "No tags ticked. Open <b>Filter</b> and pick at least one."
@@ -776,13 +790,53 @@
     revealed = true;
     stage.classList.add("revealed");
     viEl.textContent = current.vi;
-    hintEl.textContent = TOUCH ? "tap anywhere for next" : "press space / tap for next · F to fail";
+    hintEl.textContent = TOUCH ? "tap anywhere for next" : "press space / tap for next · F to fail · Z to undo";
     $("failBtn").style.display = "inline-block";
   }
+
+  // ---------- undo ----------
+  // Each answer pushes a snapshot of exactly what it changed: the card's
+  // progress/tallies and the ledger buckets it bumped. Undo puts them back and
+  // re-shows that card revealed, so you can grade it again.
+  const undoStack = [];
+  const UNDO_MAX = 30;
+  function pushUndo(card, failed) {
+    const tags = cardTags(card);
+    undoStack.push({
+      id: card.id, prog: card.prog || 0, r: Object.assign({}, card.r),
+      f: Object.assign({}, card.f), t: card.t, day: todayStr(),
+      tags: tags.length ? tags : ["No Tag"], failed, prevLast: lastId
+    });
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    renderUndoBtn();
+  }
+  // Called whenever undoing would no longer be honest — e.g. once this
+  // device's counts have left in a sync file, a merge would bring them back.
+  function clearUndo() { undoStack.length = 0; renderUndoBtn(); }
+  function renderUndoBtn() { $("undoBtn").disabled = undoStack.length === 0; }
+  function undo() {
+    const u = undoStack.pop();
+    renderUndoBtn();
+    if (!u) return;
+    const c = cardById(u.id);
+    if (!c || isDeleted(c)) return;          // card was deleted since; nothing to restore
+    c.prog = u.prog; c.r = u.r; c.f = u.f; c.t = u.t;
+    const L = myLedger();
+    const dec = (m, k) => { if (m[k] > 1) m[k]--; else delete m[k]; };
+    dec(L.daily, u.day); u.tags.forEach(t => dec(L.byTag, t));
+    if (u.failed) { dec(L.failDaily, u.day); u.tags.forEach(t => dec(L.failByTag, t)); }
+    lastId = u.prevLast;
+    saveDeck(); saveStats(); renderCounts();
+    showCard(c); reveal();
+    hintEl.textContent = (u.failed ? "Fail undone" : "Pass undone")
+      + (TOUCH ? " — tap to pass, or Fail" : " — space to pass · F to fail");
+  }
+  $("undoBtn").onclick = undo;
 
   function advance() {
     if (!current) return;
     if (!revealed) { reveal(); return; }
+    pushUndo(current, false);
     bump(current.r);              // total reviews (never goes down)
     current.prog = (current.prog || 0) + 1;  // learning progress toward mature
     current.t = touch();          // newest activity wins when devices merge
@@ -796,6 +850,7 @@
   // fail: still a review, but learning progress goes back to 0 (total kept), fail logged
   function fail() {
     if (!current || !revealed) return;
+    pushUndo(current, true);
     bump(current.r);
     bump(current.f);
     current.prog = 0;             // back to learning phase
@@ -810,19 +865,47 @@
   }
 
   // ---------- import / parse ----------
+  // Tab wins if present (spreadsheet paste); otherwise | then = then a dash
+  // with spaces round it — phones can't type a tab. The dash needs the spaces
+  // so words like "well-known" or "e-mail" stay whole.
+  function splitLine(raw) {
+    if (raw.includes("\t")) return raw.split("\t");
+    if (raw.includes("|")) return raw.split("|");
+    if (raw.includes("=")) return raw.split("=");
+    return raw.split(/\s+[-–—]\s+/);
+  }
+  // identity for duplicate checks: same wording on both sides, ignoring case
+  function cardKey(en, vi) {
+    return (en || "").trim().normalize("NFC").toLowerCase() + "\u0000"
+         + (vi || "").trim().normalize("NFC").toLowerCase();
+  }
+  // → { cards, bad: [raw lines that couldn't be read], dupes: n skipped }
   function parseBatch(text) {
-    const out = [];
-    const lines = text.split(/\r?\n/);
-    for (const raw of lines) {
+    const cards = [], bad = [];
+    let dupes = 0;
+    const seen = new Set(liveDeck().map(c => cardKey(c.en, c.vi)));
+    for (const raw of text.split(/\r?\n/)) {
       if (!raw.trim() || raw.trim().startsWith("#")) continue;
-      const parts = raw.split("\t");
+      const parts = splitLine(raw);
       const en = (parts[0] || "").trim();
       const vi = (parts[1] || "").trim();
-      const tag = normalizeTags(parts[2] || "");
-      if (!en && !vi) continue;
-      out.push(newCard(en, vi, tag));
+      if (parts.length < 2 || !en || !vi) { bad.push(raw); continue; }
+      const key = cardKey(en, vi);
+      if (seen.has(key)) { dupes++; continue; }
+      seen.add(key);
+      cards.push(newCard(en, vi, normalizeTags(parts[2] || "")));
     }
-    return out;
+    return { cards, bad, dupes };
+  }
+  const plural = (n, word) => `${n} ${word}${n !== 1 ? "s" : ""}`;
+  // live read-out under the batch box, so problems show before you hit Add
+  function renderPasteInfo() {
+    const text = $("paste").value;
+    if (!text.trim()) { $("pasteInfo").textContent = ""; return; }
+    const { cards, bad, dupes } = parseBatch(text);
+    $("pasteInfo").innerHTML = `${plural(cards.length, "card")} ready`
+      + (dupes ? ` · ${dupes} already in your deck` : "")
+      + (bad.length ? ` · <span class="warn">${plural(bad.length, "line")} with no separator or an empty side</span>` : "");
   }
   function newCard(en, vi, tag) {
     const now = touch();
@@ -833,14 +916,23 @@
   let _idc = Date.now();
   function nextId() { return settings.device + "-" + (_idc++).toString(36); }
 
-  function addCards(text) {
-    const cards = parseBatch(text);
-    if (cards.length === 0) { msg("Nothing to add — check tab spacing."); return; }
-    deck = deck.concat(cards);   // always add (dupes allowed)
-    saveDeck();
-    rebuildFilter(); renderCounts();
-    if (!current) showCard(pickNext());
-    msg(`Added ${cards.length} card${cards.length>1?"s":""}.`);
+  // fromBox: the text came from the paste box, so the box is replaced with just
+  // the lines that need fixing. From a file, those lines are appended instead.
+  function addCards(text, fromBox) {
+    const { cards, bad, dupes } = parseBatch(text);
+    if (cards.length) {
+      deck = deck.concat(cards);
+      saveDeck();
+      rebuildFilter(); renderCounts();
+      if (!current) showCard(pickNext());
+    }
+    const box = $("paste");
+    if (fromBox) box.value = bad.join("\n");
+    else if (bad.length) box.value = (box.value.trim() ? box.value.replace(/\s+$/, "") + "\n" : "") + bad.join("\n");
+    renderPasteInfo();
+    msg((cards.length ? `Added ${plural(cards.length, "card")}.` : "Nothing added.")
+      + (dupes ? ` Skipped ${dupes} already in your deck.` : "")
+      + (bad.length ? ` ${plural(bad.length, "line")} couldn't be read (no separator, or a side is empty) — left in the box to fix.` : ""));
   }
 
   // ---------- menu wiring ----------
@@ -864,6 +956,7 @@
     renderBands();
     $("darkToggle").checked = !!settings.dark;
     $("msg").textContent = "";
+    renderPasteInfo();
     renderSyncInfo();
     $("menu").classList.add("open");
   }
@@ -880,7 +973,8 @@
   $("menuBtn").onclick = openMenu;
   $("closeMenu").onclick = closeMenu;
   $("darkToggle").onchange = e => { settings.dark = e.target.checked; applyTheme(); saveSettings(); };
-  $("addPaste").onclick = () => { addCards($("paste").value); $("paste").value = ""; };
+  $("addPaste").onclick = () => addCards($("paste").value, true);
+  $("paste").addEventListener("input", renderPasteInfo);
 
   // let Tab type a real tab inside the batch box (Shift+Tab still moves focus out)
   $("paste").addEventListener("keydown", e => {
@@ -898,7 +992,7 @@
   $("fileTxt").onchange = e => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = () => addCards(r.result);
+    r.onload = () => addCards(r.result, false);
     r.readAsText(f); e.target.value = "";
   };
 
@@ -1030,6 +1124,7 @@
   function myLedgerTotal() { return sumMap(myLedger().daily); }
   function markSynced() {
     settings.lastSync = touch();
+    clearUndo();
     settings.syncMark = myLedgerTotal();
     saveSettings(); renderSyncInfo();
   }
@@ -1211,7 +1306,7 @@
 
   $("resetCounts").onclick = () => {
     if (!confirm("Reset every card's total reviews and learning progress to 0?\n\nFail counts and your Stats history are kept.\n\nNote: this only resets THIS device. Merging the other device back in will bring its counts with it.")) return;
-    deck.forEach(c => { c.r = {}; c.prog = 0; c.t = touch(); }); saveDeck();
+    deck.forEach(c => { c.r = {}; c.prog = 0; c.t = touch(); }); saveDeck(); clearUndo();
     renderCounts(); if (current) showCard(current);
     msg("Review counts and learning progress reset.");
   };
@@ -1219,6 +1314,7 @@
     if (!confirm("Delete ALL cards permanently? Export first if unsure.\n\nThe deletions will also travel to your other device next time you merge.")) return;
     const now = touch();
     deck.forEach(c => { if (!c.del) c.del = now; });  // tombstones, so the deletes sync
+    clearUndo();
     saveDeck(); rebuildFilter(); renderCounts();
     lastId = null; current = null; showCard(null);
     msg("Deck cleared.");
@@ -1228,12 +1324,22 @@
   // ---------- browse ----------
   let browseFilter = "__all__";
 
+  // strip Vietnamese tone/vowel marks: "Bạn khỏe" → "ban khoe", "đi" → "di"
+  function fold(s) {
+    return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[đĐ]/g, "d").toLowerCase();
+  }
   function browseRows() {
-    const q = $("search").value.trim().toLowerCase();
+    const raw = $("search").value.trim().normalize("NFC").toLowerCase();
+    // No accents typed → ignore accents ("ban" finds bạn, bán, bàn).
+    // Any accent typed → match accents exactly ("bán" finds only bán).
+    const strict = raw && fold(raw) !== raw;
+    const norm = strict ? s => (s || "").normalize("NFC").toLowerCase() : fold;
+    const q = strict ? raw : fold(raw);
     return deck.filter(c => {
       if (isDeleted(c)) return false;
       if (browseFilter !== "__all__" && !cardTags(c).includes(browseFilter)) return false;
-      if (q && !((c.en || "").toLowerCase().includes(q) || (c.vi || "").toLowerCase().includes(q))) return false;
+      if (q && !(norm(c.en).includes(q) || norm(c.vi).includes(q) || norm(c.tag).includes(q))) return false;
       return true;
     });
   }
@@ -1290,6 +1396,7 @@
     else showCard(current); // reflect any edits to the current card
   }
   $("browseBtn").onclick = openBrowse;
+  $("addFromBrowse").onclick = () => openAdd();
   $("closeBrowse").onclick = closeBrowse;
   $("search").oninput = renderBrowseList;
   $("bfilter").onchange = e => { browseFilter = e.target.value; renderBrowseList(); };
@@ -1370,7 +1477,7 @@
   $("resetStats").onclick = () => {
     if (!confirm("Clear your activity history (review and fail totals, per-tag and per-day counts) for ALL devices?\n\nThis does NOT touch your cards or their review counts.")) return;
     stats = { dev: {} };
-    saveStats();
+    saveStats(); clearUndo();
     renderStats();
   };
 
@@ -1380,8 +1487,65 @@
   // can put you back on the original's edit page exactly as you left it.
   let dupReturn = null;
 
+  // Add mode: the same modal, kept open between cards for fast entry.
+  let adding = false, addedCount = 0, addDupWarned = "";
+
+  function setEditNote(text, kind) {
+    const el = $("eReviews");
+    el.textContent = text;
+    el.className = "note" + (kind ? " " + kind : "");
+  }
+  // phones show "next"/"done" on the Enter key in add mode; plain newline otherwise
+  function setEnterHints(on) {
+    if (on) { $("eEn").setAttribute("enterkeyhint", "next"); $("eVi").setAttribute("enterkeyhint", "done"); }
+    else { $("eEn").removeAttribute("enterkeyhint"); $("eVi").removeAttribute("enterkeyhint"); }
+  }
+
+  function openAdd() {
+    editingId = null; dupReturn = null;
+    adding = true; addedCount = 0; addDupWarned = "";
+    $("eEn").value = ""; $("eVi").value = ""; $("eTag").value = settings.lastAddTags || "";
+    $("editTitle").textContent = "Add card";
+    $("eDelete").style.display = "none"; $("eDuplicate").style.display = "none";
+    $("eSave").textContent = "Add"; $("eCancel").textContent = "Done";
+    setEnterHints(true);
+    setEditNote(TOUCH ? "Tags stay filled in for the next card."
+      : "Enter moves on, and adds from Vietnamese. Tags stay filled in for the next card.");
+    $("editModal").classList.add("open");
+    $("eEn").focus();
+  }
+
+  function saveAdd() {
+    const en = $("eEn").value.trim(), vi = $("eVi").value.trim(),
+          tag = normalizeTags($("eTag").value);
+    if (!en || !vi) {
+      setEditNote(`Fill in the ${!en ? "English" : "Vietnamese"} side first.`, "warn");
+      (!en ? $("eEn") : $("eVi")).focus();
+      return;
+    }
+    // same English already in the deck? say so once; pressing Add again adds it anyway
+    const sig = cardKey(en, vi);
+    const twin = liveDeck().find(c => (c.en || "").trim().toLowerCase() === en.toLowerCase());
+    if (twin && addDupWarned !== sig) {
+      addDupWarned = sig;
+      setEditNote(`Already in your deck: “${twin.en}” → “${twin.vi}”. Press Add again to add it anyway.`, "warn");
+      return;
+    }
+    addDupWarned = "";
+    deck.push(newCard(en, vi, tag)); saveDeck();
+    settings.lastAddTags = tag; saveSettings();
+    addedCount++;
+    afterDeckEdit();
+    $("eEn").value = ""; $("eVi").value = ""; $("eTag").value = tag;
+    setEditNote(`✓ Added “${en}” · ${addedCount} added so far`, "ok");
+    $("eEn").focus();
+  }
+
   function showEditFor(c) {
+    adding = false; setEnterHints(false);
     $("editTitle").textContent = "Edit card";
+    $("eSave").textContent = "Save"; $("eCancel").textContent = "Cancel";
+    $("eReviews").className = "note";
     $("eDelete").style.display = ""; $("eDuplicate").style.display = "";
     const revs = totalReviews(c), fails = totalFails(c);
     $("eReviews").textContent = `${revs} total review${revs !== 1 ? "s" : ""} · `
@@ -1398,7 +1562,7 @@
   }
   function closeEdit() {
     if (dupReturn) { leaveDuplicate(); return; } // cancel a duplicate → back to the original
-    $("editModal").classList.remove("open"); editingId = null;
+    $("editModal").classList.remove("open"); editingId = null; adding = false;
   }
 
   // "I want to eat" → "I want to eat 01"; picks the next free number among
@@ -1441,6 +1605,7 @@
   }
 
   function saveEdit() {
+    if (adding) { saveAdd(); return; }
     if (dupReturn) { saveDuplicate(); return; }
     const c = cardById(editingId); if (!c) { closeEdit(); return; }
     const en = $("eEn").value.trim(), vi = $("eVi").value.trim(),
@@ -1481,7 +1646,35 @@
   $("eCancel").onclick = closeEdit;
   $("eDelete").onclick = deleteFromModal;
   $("eDuplicate").onclick = startDuplicate;
-  $("editModal").addEventListener("click", e => { if (e.target === $("editModal")) closeEdit(); });
+  $("editModal").addEventListener("click", e => {
+    if (e.target !== $("editModal")) return;
+    // a stray tap outside mustn't throw away a half-typed new card
+    if (adding && ($("eEn").value.trim() || $("eVi").value.trim())) return;
+    closeEdit();
+  });
+  $("addBtn").onclick = () => openAdd();
+
+  // Enter handling inside the card form. Everywhere: Ctrl/⌘+Enter saves, and
+  // Enter in Tags saves. Add mode only: Enter in English jumps to Vietnamese,
+  // Enter in Vietnamese adds. Shift+Enter always types a real newline.
+  function formEnter(target) {
+    if (target === $("eTag")) { saveEdit(); return true; }
+    if (!adding) return false;
+    if (target === $("eEn")) { $("eVi").focus(); return true; }
+    if (target === $("eVi")) { saveEdit(); return true; }
+    return false;
+  }
+  $("editModal").addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return; // 229: IME (e.g. Telex) mid-word
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); saveEdit(); return; }
+    if (e.shiftKey) return;
+    if (formEnter(e.target)) e.preventDefault();
+  });
+  // some phone keyboards never send a keydown for Enter, only the newline itself
+  $("editModal").addEventListener("beforeinput", e => {
+    if (e.inputType !== "insertLineBreak" && e.inputType !== "insertParagraph") return;
+    if (e.target === $("eTag") || adding) { if (formEnter(e.target)) e.preventDefault(); }
+  });
 
   $("editBtn").onclick = e => { e.stopPropagation(); if (current) openEdit(current.id); };
   $("failBtn").onclick = e => { e.stopPropagation(); fail(); };
@@ -1494,7 +1687,14 @@
     if ($("browse").classList.contains("open")) { if (e.key === "Escape") closeBrowse(); return; }
     if ($("stats").classList.contains("open")) { if (e.key === "Escape") closeStats(); return; }
     if ($("menu").classList.contains("open")) { if (e.key === "Escape") closeMenu(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      if ((e.key === "z" || e.key === "Z") && !e.altKey) { e.preventDefault(); undo(); }
+      return;
+    }
     if ((e.key === "f" || e.key === "F") && revealed) { e.preventDefault(); fail(); return; }
+    if (e.key === "z" || e.key === "Z" || e.key === "Backspace") { e.preventDefault(); undo(); return; }
+    if (e.key === "a" || e.key === "A") { e.preventDefault(); openAdd(); return; }
+    if ((e.key === "e" || e.key === "E") && current) { e.preventDefault(); openEdit(current.id); return; }
     if (e.code === "Space" || e.key === "Enter") { e.preventDefault(); advance(); }
   });
 
@@ -1592,8 +1792,26 @@
   // Offline support, only where it's allowed. Service workers need a secure
   // origin, so this is a no-op when the file is opened straight off disk —
   // the app runs identically either way.
+  // Pick up a newly uploaded version when the app comes back to the front.
+  // An installed app on a phone usually resumes rather than reloading, so
+  // without this an update could wait until it's fully closed. Only reloads
+  // between cards with nothing open, so you never lose what you're doing.
+  if (/^https?:$/.test(location.protocol)) {
+    const versionOf = () => fetch(location.href.split("#")[0], { method: "HEAD", cache: "no-cache" })
+      .then(r => r.ok ? (r.headers.get("etag") || r.headers.get("last-modified") || "") : "")
+      .catch(() => "");
+    let bootVersion = "";
+    versionOf().then(v => { bootVersion = v; });
+    const busy = () => revealed || ["menu", "browse", "stats", "filters", "editModal"]
+      .some(id => $(id).classList.contains("open"));
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible" || !bootVersion) return;
+      versionOf().then(v => { if (v && v !== bootVersion && !busy()) location.reload(); });
+    });
+  }
+
   if ("serviceWorker" in navigator && window.isSecureContext) {
-    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {}));
   }
 })();
 </script>
