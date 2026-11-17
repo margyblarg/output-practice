@@ -2,11 +2,11 @@
 // Network-first for the page itself, so a re-upload reaches you next time you
 // have signal; cache-first for the icons, which never change.
 // Bump CACHE whenever the app changes to retire the old copy.
-const CACHE = "output-practice-v3";
+const CACHE = "output-practice-v4";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", e => {
@@ -24,8 +24,12 @@ self.addEventListener("fetch", e => {
   // the page: freshest wins, fall back to the cached copy when offline
   if (req.mode === "navigate" || req.destination === "document") {
     e.respondWith(
-      fetch(req)
+      // cache:"no-cache" skips the browser's HTTP cache (GitHub Pages marks
+      // files fresh for 10 min) and asks the server every time. It's a cheap
+      // check: an unchanged page comes back as a tiny "304 not modified".
+      fetch(req.url, { cache: "no-cache", credentials: "same-origin" })
         .then(res => {
+          if (!res.ok) throw new Error("bad status");
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put("./index.html", copy));
           return res;

@@ -1792,8 +1792,26 @@
   // Offline support, only where it's allowed. Service workers need a secure
   // origin, so this is a no-op when the file is opened straight off disk —
   // the app runs identically either way.
+  // Pick up a newly uploaded version when the app comes back to the front.
+  // An installed app on a phone usually resumes rather than reloading, so
+  // without this an update could wait until it's fully closed. Only reloads
+  // between cards with nothing open, so you never lose what you're doing.
+  if (/^https?:$/.test(location.protocol)) {
+    const versionOf = () => fetch(location.href.split("#")[0], { method: "HEAD", cache: "no-cache" })
+      .then(r => r.ok ? (r.headers.get("etag") || r.headers.get("last-modified") || "") : "")
+      .catch(() => "");
+    let bootVersion = "";
+    versionOf().then(v => { bootVersion = v; });
+    const busy = () => revealed || ["menu", "browse", "stats", "filters", "editModal"]
+      .some(id => $(id).classList.contains("open"));
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible" || !bootVersion) return;
+      versionOf().then(v => { if (v && v !== bootVersion && !busy()) location.reload(); });
+    });
+  }
+
   if ("serviceWorker" in navigator && window.isSecureContext) {
-    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {}));
   }
 })();
 </script>
