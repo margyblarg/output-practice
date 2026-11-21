@@ -296,7 +296,7 @@
  <div class="wrap">
   <button id="closeMenu">Close</button>
   <h2>Add cards</h2>
-  <p class="note">For a single card, use <b>+ Add</b> in the bottom bar. For a batch: one card per line, <b>English | Vietnamese | Tags</b>. Split the parts with a <b>tab</b>, <b>|</b>, <b>=</b> or a dash with spaces round it (<b> - </b>). Tags are optional; put several in one card separated by <b>;</b> (e.g. <code>greetings;cafe</code>). Blank lines and lines starting with <b>#</b> are ignored. Exact duplicates of cards you already have are skipped, and lines that can't be read are left in the box for you to fix.</p>
+  <p class="note">For a single card, use <b>+ Add</b> in the bottom bar. For a batch: one card per line, <b>English | Vietnamese | Tags</b>. Split the parts with a <b>tab</b>, <b>|</b>, <b>=</b> or a dash with spaces round it (<b> - </b>). Tags are optional; put several in one card separated by <b>;</b> or <b>,</b> (e.g. <code>greetings;cafe</code>). Blank lines and lines starting with <b>#</b> are ignored. Exact duplicates of cards you already have are skipped, and lines that can't be read are left in the box for you to fix.</p>
   <textarea id="paste" placeholder="Hello | Xin chào | greetings&#10;How are you? = Bạn khỏe không?&#10;Thank you - Cảm ơn - greetings;polite"></textarea>
   <span id="pasteInfo" class="note"></span>
   <div class="row">
@@ -410,7 +410,7 @@
   <h2 id="editTitle">Edit card</h2>
   <label class="efield">English<textarea id="eEn" rows="2"></textarea></label>
   <label class="efield">Vietnamese<textarea id="eVi" rows="2"></textarea></label>
-  <label class="efield">Tags <span class="note">(separate with ;)</span><input id="eTag" type="text" placeholder="greetings;cafe"></label>
+  <label class="efield">Tags <span class="note">(separate with ; or ,)</span><input id="eTag" type="text" placeholder="greetings;cafe"></label>
   <div id="eReviews" class="note"></div>
   <div class="erow">
     <button id="eSave">Save</button>
@@ -605,14 +605,17 @@
     return deck.filter(c => !isDeleted(c) && ageSelected(c) && tagSelected(c));
   }
   function cardById(id) { return deck.find(c => c.id === id); }
-  // a card's tag field is a ';'-separated string; split into a clean array
+  // a card's tag field is a ';'-separated string; split into a clean array.
+  // Commas are accepted as separators too ("Subnautica, Diving"), since that's
+  // the natural way to type or generate a list.
+  const TAG_SPLIT = /[;,]/;
   function cardTags(c) {
-    return (c.tag || "").split(";").map(t => t.trim()).filter(Boolean);
+    return (c.tag || "").split(TAG_SPLIT).map(t => t.trim()).filter(Boolean);
   }
   // canonical form: trimmed, de-duped, ';'-joined
   function normalizeTags(str) {
     const seen = [];
-    (str || "").split(";").map(t => t.trim()).filter(Boolean).forEach(t => {
+    (str || "").split(TAG_SPLIT).map(t => t.trim()).filter(Boolean).forEach(t => {
       if (!seen.includes(t)) seen.push(t);
     });
     return seen.join(";");
@@ -1066,7 +1069,7 @@
       const legacyReviews = Number(c.reviews) || 0;
       const legacyFails = Number(c.fails) || 0;
       const card = {
-        id: c.id || nextId(), en: c.en || "", vi: c.vi || "", tag: c.tag || "",
+        id: c.id || nextId(), en: c.en || "", vi: c.vi || "", tag: normalizeTags(c.tag),
         prog: c.prog === undefined ? legacyReviews : Number(c.prog) || 0,
         r: cleanMap(c.r), f: cleanMap(c.f),
         t: Number(c.t) || 0, e: Number(c.e) || 0
