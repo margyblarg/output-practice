@@ -104,9 +104,11 @@
   #msg, .msgout { color:var(--accent); font-size:13px; margin-left:6px; }
 
   /* edit button on stage */
-  #editBtn { margin-left:10px; font-size:12px; color:var(--muted); background:none;
+  #editBtn, #dirBtn { margin-left:10px; font-size:12px; color:var(--muted); background:none;
     border:1px solid var(--line); border-radius:999px; padding:1px 9px; cursor:pointer; }
-  #editBtn:hover { color:var(--fg); }
+  #editBtn:hover, #dirBtn:hover { color:var(--fg); }
+  #dirBtn { margin-left:6px; }
+  #dirBtn[aria-pressed="true"] { color:var(--accent); border-color:var(--accent); }
   .failtag { color:var(--danger-fg); }
   /* fail button on stage (shown after reveal) */
   #failBtn { margin-top:18px; font-size:14px; cursor:pointer; padding:7px 16px;
@@ -246,7 +248,7 @@
 
     /* big, unmissable fail target */
     #failBtn { margin-top:20px; font-size:16px; padding:14px 28px; min-width:70%; }
-    #editBtn { padding:4px 12px; }
+    #editBtn, #dirBtn { padding:4px 12px; }
 
     /* overlays clear the notch and the gesture pill */
     #menu { padding:20px 16px calc(28px + env(safe-area-inset-bottom)); padding-top:calc(20px + env(safe-area-inset-top)); }
@@ -283,7 +285,7 @@
 </div>
 
 <div id="stage">
-  <div id="meta"><span id="tag"></span><span id="ctr"></span><button id="editBtn" title="Edit this card">✎ edit</button></div>
+  <div id="meta"><span id="tag"></span><span id="ctr"></span><button id="editBtn" title="Edit this card">✎ edit</button><button id="dirBtn" title="Switch which side you see first (S)"></button></div>
   <div id="en"></div>
   <div id="divider"></div>
   <div id="vi"></div>
@@ -783,7 +785,9 @@
     const fails = totalFails(c);
     ctrEl.innerHTML = `${learn} · ${totalReviews(c)} total`
       + (fails > 0 ? ` · <span class="failtag">✗ ${fails}</span>` : "");
-    enEl.textContent = c.en;
+    // #en/#vi are really "prompt" and "answer" slots; the direction toggle
+    // only decides which side of the card goes in which. Grading is identical.
+    enEl.textContent = settings.viFirst ? c.vi : c.en;
     viEl.textContent = "";
     hintEl.textContent = TOUCH ? "tap to show answer" : "press space / tap to show answer";
     $("failBtn").style.display = "none"; // shown after reveal
@@ -792,10 +796,26 @@
   function reveal() {
     revealed = true;
     stage.classList.add("revealed");
-    viEl.textContent = current.vi;
+    viEl.textContent = settings.viFirst ? current.en : current.vi;
     hintEl.textContent = TOUCH ? "tap anywhere for next" : "press space / tap for next · F to fail · Z to undo";
     $("failBtn").style.display = "inline-block";
   }
+
+  // ---------- card direction ----------
+  // Per-device preference (never sent in sync files). Flipping keeps the
+  // current card on screen, still revealed if it was.
+  function renderDirBtn() {
+    const b = $("dirBtn");
+    b.textContent = settings.viFirst ? "⇄ VI first" : "⇄ EN first";
+    b.setAttribute("aria-pressed", settings.viFirst ? "true" : "false");
+  }
+  function toggleDirection() {
+    settings.viFirst = !settings.viFirst;
+    saveSettings(); renderDirBtn();
+    if (current) { const wasRevealed = revealed; showCard(current); if (wasRevealed) reveal(); }
+  }
+  $("dirBtn").onclick = e => { e.stopPropagation(); toggleDirection(); };
+  renderDirBtn();
 
   // ---------- undo ----------
   // Each answer pushes a snapshot of exactly what it changed: the card's
@@ -1697,6 +1717,7 @@
     if ((e.key === "f" || e.key === "F") && revealed) { e.preventDefault(); fail(); return; }
     if (e.key === "z" || e.key === "Z" || e.key === "Backspace") { e.preventDefault(); undo(); return; }
     if (e.key === "a" || e.key === "A") { e.preventDefault(); openAdd(); return; }
+    if (e.key === "s" || e.key === "S") { e.preventDefault(); toggleDirection(); return; }
     if ((e.key === "e" || e.key === "E") && current) { e.preventDefault(); openEdit(current.id); return; }
     if (e.code === "Space" || e.key === "Enter") { e.preventDefault(); advance(); }
   });
