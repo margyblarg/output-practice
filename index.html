@@ -446,7 +446,7 @@
       <tr><td><code>-trên</code></td><td>exclude</td></tr>
       <tr><td><code>ng*</code></td><td>word starts with ng</td></tr>
       <tr><td><code>en:</code> <code>tag:</code></td><td>search English / tags</td></tr>
-      <tr><td><code>ban</code> / <code>bán</code></td><td>no accents = any accents</td></tr>
+      <tr><td><code>cho</code> ≠ <code>chỗ</code></td><td>accents must match</td></tr>
     </table>
   </details>
   <div id="blist"></div>
@@ -1493,13 +1493,8 @@
   //   -trên           leave out cards that have it
   //   ng*             wildcard; matches whole words only otherwise
   //   en: / tag:      search the English side or the tags (default: Vietnamese)
-  // Accents are decided per word: none typed → ignored, any typed → exact.
-
-  // strip Vietnamese tone/vowel marks: "Bạn khỏe" → "ban khoe", "đi" → "di"
-  function fold(s) {
-    return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/[đĐ]/g, "d").toLowerCase();
-  }
+  // Accents always count exactly as typed: cho finds cho, never chỗ or chợ.
+  // Only letter case is ignored.
   const lowerNFC = s => (s || "").normalize("NFC").toLowerCase();
 
   // A sentence → segments (split at punctuation) → words. A phrase must sit
@@ -1514,7 +1509,7 @@
     let segs = segCache.get(text);
     if (segs) return segs;
     segs = lowerNFC(text).split(HARD_BREAK)
-      .map(part => (part.match(WORD) || []).map(w => ({ s: w, l: fold(w) })))
+      .map(part => part.match(WORD) || [])
       .filter(seg => seg.length);
     if (segCache.size > 20000) segCache.clear();
     segCache.set(text, segs);
@@ -1523,15 +1518,12 @@
 
   // one typed word → a test for one word of a card
   function wordMatcher(raw) {
-    const w = lowerNFC(raw);
-    const strict = fold(w) !== w;
-    const key = strict ? w : fold(w);
-    const pick = strict ? (x => x.s) : (x => x.l);
+    const key = lowerNFC(raw);
     if (key.includes("*")) {
       const re = new RegExp("^" + key.split("*").map(p => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$", "u");
-      return x => re.test(pick(x));
+      return x => re.test(x);
     }
-    return x => pick(x) === key;
+    return x => x === key;
   }
 
   const OPEN_QUOTES = "\"“”„«";
@@ -1601,7 +1593,7 @@
     return false;
   }
   function termHits(t, c) {
-    if (t.field === "tag") return cardTags(c).some(tag => t.test({ s: lowerNFC(tag), l: fold(tag) }));
+    if (t.field === "tag") return cardTags(c).some(tag => t.test(lowerNFC(tag)));
     const segs = segmentsOf(t.field === "en" ? c.en : c.vi);
     // unquoted words are each independent (AND, any order); quoted ones are a phrase
     if (t.quoted) return seqIn(segs, t.seq);
