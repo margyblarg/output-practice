@@ -146,17 +146,22 @@
     border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
   .bbtn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
   .bbtn:disabled { opacity:.45; cursor:default; }
-  #helpBtn { padding:6px 11px; font-weight:600; }
-  #helpBtn[aria-expanded="true"] { color:var(--accent); border-color:var(--accent); }
   #bedit { display:none; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px;
     border-bottom:1px solid var(--line); font-size:14px; }
   #bedit.open { display:flex; }
   #bedit b { color:var(--accent); }
   #bnote { padding:0 16px; }
   #bnote:not(:empty) { padding:8px 16px; color:var(--accent); }
-  #bhelp { display:none; padding:6px 16px 10px; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
-  #bhelp.open { display:block; }
-  #bhelp table { border-collapse:collapse; width:100%; }
+  #bhelp { padding:6px 16px; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
+  #bhelp summary { list-style:none; cursor:pointer; user-select:none; display:inline-flex;
+    align-items:center; gap:6px; padding:4px 0; -webkit-tap-highlight-color:transparent; }
+  #bhelp summary::-webkit-details-marker { display:none; }
+  #bhelp summary::after { content:""; width:6px; height:6px; margin-top:-3px;
+    border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+    transform:rotate(45deg); transition:transform .15s; }
+  #bhelp[open] summary::after { transform:rotate(-135deg); margin-top:3px; }
+  #bhelp[open] summary { margin-bottom:4px; }
+  #bhelp table { border-collapse:collapse; width:100%; margin-bottom:4px; }
   #bhelp td { padding:4px 8px 4px 0; vertical-align:top; line-height:1.45; }
   #bhelp td:first-child { white-space:nowrap; color:var(--fg); width:1%; padding-right:14px; }
   #bhelp code { font-size:13px; }
@@ -418,7 +423,6 @@
  <div class="bwrap">
   <div class="bhead">
     <input id="search" placeholder='Search Vietnamese — e.g. "lên trên", xuống sâu' autocomplete="off" autocapitalize="off" spellcheck="false">
-    <button id="helpBtn" class="bbtn" aria-expanded="false" title="Search help">?</button>
     <select id="bfilter"><option value="__all__">All tags</option></select>
     <span id="bcount" class="note"></span>
     <span class="bspacer"></span>
@@ -433,7 +437,8 @@
     <button id="beditCancel" class="bbtn">Cancel</button>
   </div>
   <div id="bnote" class="note"></div>
-  <div id="bhelp">
+  <details id="bhelp">
+    <summary>Search tips</summary>
     <table>
       <tr><td><code>lên trên</code></td><td>both words, any order</td></tr>
       <tr><td><code>"lên trên"</code></td><td>exact phrase</td></tr>
@@ -443,7 +448,7 @@
       <tr><td><code>en:</code> <code>tag:</code></td><td>search English / tags</td></tr>
       <tr><td><code>ban</code> / <code>bán</code></td><td>no accents = any accents</td></tr>
     </table>
-  </div>
+  </details>
   <div id="blist"></div>
  </div>
 </div>
@@ -1772,10 +1777,6 @@
   $("saveDeck").onclick = saveBrowseAsDeck;
   $("beditSave").onclick = saveDeckEdit;
   $("beditCancel").onclick = () => { browseNote(""); stopEditingDeck(); };
-  $("helpBtn").onclick = () => {
-    const open = $("bhelp").classList.toggle("open");
-    $("helpBtn").setAttribute("aria-expanded", open);
-  };
   $("search").addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); $("search").blur(); }
   });
