@@ -446,6 +446,7 @@
       <tr><td><code>-trên</code></td><td>exclude</td></tr>
       <tr><td><code>ng*</code></td><td>word starts with ng</td></tr>
       <tr><td><code>en:</code> <code>tag:</code></td><td>search English / tags</td></tr>
+      <tr><td><code>vần:ộc</code></td><td>rhyme: lộc, mộc — not cuộc</td></tr>
       <tr><td><code>cho</code> ≠ <code>chỗ</code></td><td>accents must match</td></tr>
     </table>
   </details>
@@ -1493,6 +1494,7 @@
   //   -trên           leave out cards that have it
   //   ng*             wildcard; matches whole words only otherwise
   //   en: / tag:      search the English side or the tags (default: Vietnamese)
+  //   vần:ộc          words whose rhyme (vần) is ộc: lộc, mộc, but not cuộc (c + uộc)
   // Accents always count exactly as typed: cho finds cho, never chỗ or chợ.
   // Only letter case is ignored.
   const lowerNFC = s => (s || "").normalize("NFC").toLowerCase();
@@ -1516,6 +1518,27 @@
     return segs;
   }
 
+  // Vietnamese syllable = initial consonants (âm đầu) + rhyme (vần), with the
+  // tone riding on the rhyme's vowel. h|ọc, ng|ọc, c|uộc, qu|ốc, gi|ó, g|ì.
+  const isVowel = ch => /[aeiouy]/.test(ch.normalize("NFD")[0]);
+  function rhymeOf(w) {
+    let k = 0;
+    while (k < w.length && !isVowel(w[k])) k++;
+    if (k === 1 && w[0] === "q" && w[1] === "u") k = 2;                  // qu is one initial
+    else if (k === 1 && w[0] === "g" && w[1] === "i" && w[2] && isVowel(w[2])) k = 2;  // gi + vowel
+    return w.slice(k);
+  }
+  const rhymeCache = new Map();
+  function rhymeSegmentsOf(text) {
+    text = text || "";
+    let segs = rhymeCache.get(text);
+    if (segs) return segs;
+    segs = segmentsOf(text).map(seg => seg.map(rhymeOf));
+    if (rhymeCache.size > 20000) rhymeCache.clear();
+    rhymeCache.set(text, segs);
+    return segs;
+  }
+
   // one typed word → a test for one word of a card
   function wordMatcher(raw) {
     const key = lowerNFC(raw);
@@ -1534,7 +1557,7 @@
   function parseQuery(src) {
     src = src || "";
     if (parseCache.has(src)) return parseCache.get(src);
-    const s = src, n = s.length, groups = [];
+    const s = src.normalize("NFC"), n = s.length, groups = [];
     let cur = [], start = 0, i = 0;
     const isSep = ch => ch === undefined || /\s/.test(ch) || ch === ",";
     const endGroup = (at, next) => {
@@ -1548,8 +1571,9 @@
       if (s.startsWith("OR", i) && isSep(s[i - 1]) && isSep(s[i + 2])) { endGroup(i, i + 2); i += 2; continue; }
       let neg = false, field = "vi";
       if (ch === "-") { neg = true; i++; }
-      const m = /^(en|vi|tag):/i.exec(s.slice(i, i + 4));
+      const m = /^(en|vi|tag|vần|van|rhyme):/i.exec(s.slice(i, i + 6));
       if (m) { field = m[1].toLowerCase(); i += m[0].length; }
+      if (field === "vần" || field === "van" || field === "rhyme") field = "rhyme";
       let text, quoted = false;
       if (OPEN_QUOTES.includes(s[i])) {
         quoted = true;
@@ -1594,7 +1618,7 @@
   }
   function termHits(t, c) {
     if (t.field === "tag") return cardTags(c).some(tag => t.test(lowerNFC(tag)));
-    const segs = segmentsOf(t.field === "en" ? c.en : c.vi);
+    const segs = t.field === "rhyme" ? rhymeSegmentsOf(c.vi) : segmentsOf(t.field === "en" ? c.en : c.vi);
     // unquoted words are each independent (AND, any order); quoted ones are a phrase
     if (t.quoted) return seqIn(segs, t.seq);
     return t.seq.every(w => seqIn(segs, [w]));
