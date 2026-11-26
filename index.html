@@ -142,6 +142,29 @@
     border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
   .brow .bbtns button.del { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
   #bempty { color:var(--muted); padding:24px 4px; }
+  .bbtn { font-size:14px; padding:6px 12px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
+  .bbtn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .bbtn:disabled { opacity:.45; cursor:default; }
+  #bedit { display:none; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px;
+    border-bottom:1px solid var(--line); font-size:14px; }
+  #bedit.open { display:flex; }
+  #bedit b { color:var(--accent); }
+  #bnote { padding:0 16px; }
+  #bnote:not(:empty) { padding:8px 16px; color:var(--accent); }
+  #bhelp { padding:6px 16px; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted); }
+  #bhelp summary { list-style:none; cursor:pointer; user-select:none; display:inline-flex;
+    align-items:center; gap:6px; padding:4px 0; -webkit-tap-highlight-color:transparent; }
+  #bhelp summary::-webkit-details-marker { display:none; }
+  #bhelp summary::after { content:""; width:6px; height:6px; margin-top:-3px;
+    border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+    transform:rotate(45deg); transition:transform .15s; }
+  #bhelp[open] summary::after { transform:rotate(-135deg); margin-top:3px; }
+  #bhelp[open] summary { margin-bottom:4px; }
+  #bhelp table { border-collapse:collapse; width:100%; margin-bottom:4px; }
+  #bhelp td { padding:4px 8px 4px 0; vertical-align:top; line-height:1.45; }
+  #bhelp td:first-child { white-space:nowrap; color:var(--fg); width:1%; padding-right:14px; }
+  #bhelp code { font-size:13px; }
 
   /* edit modal */
   #editModal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
@@ -216,6 +239,16 @@
   .fopt.off .fname, .fopt.off .fcnt { opacity:.5; }
   #fnone { color:var(--danger-fg); font-size:13px; margin-top:10px; }
   #filterBtn.on { border-color:var(--accent); color:var(--accent); }
+  #filterBtn { max-width:40vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .deckopt { cursor:pointer; }
+  .deckopt input { pointer-events:none; }
+  .deckopt .dq { display:block; color:var(--muted); font-size:13px; margin-top:2px; word-break:break-word; }
+  .deckopt .dbtns { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
+  .deckopt .dbtns button { font-size:13px; padding:4px 10px; cursor:pointer;
+    border:1px solid var(--line); border-radius:6px; background:var(--btn-bg); color:var(--fg); }
+  .deckopt .dbtns button.del { color:var(--danger-fg); border-color:var(--danger-line); background:var(--danger-bg); }
+  .deckopt.off .fname { opacity:1; }   /* unchosen decks stay readable; their buttons work */
+  #tagsOff { padding:6px 4px 10px; }
 
   /* sync section */
   #syncInfo { font-size:13px; color:var(--muted); line-height:1.6; margin:2px 0 12px; }
@@ -265,6 +298,9 @@
     #menu input[type=number] { min-height:40px; font-size:16px; }  /* 16px: stops iOS/Android zooming on focus */
     .bandrow { gap:12px 18px; }
     .brow .bbtns button { min-height:38px; padding:0 12px; }
+    .bbtn { min-height:38px; }
+    #filterBtn { max-width:27vw; flex:0 1 auto; }
+    .deckopt .dbtns button { min-height:36px; padding:0 12px; }
   }
   @media (max-width: 440px) { #bar .lbl { display:none; } }
 </style>
@@ -367,12 +403,17 @@
     <button id="closeFilters">Done</button>
   </div>
   <div id="fbody">
+    <div class="statsec">Deck</div>
+    <div id="deckList"></div>
     <div class="statsec">Card age</div>
     <div class="fbulk"><button data-set="ages-all">Select all</button><button data-set="ages-none">Deselect all</button></div>
     <div id="ageList"></div>
     <div class="statsec">Tags</div>
-    <div class="fbulk"><button data-set="tags-all">Select all</button><button data-set="tags-none">Deselect all</button></div>
-    <div id="tagList"></div>
+    <div id="tagsOff" class="note"></div>
+    <div id="tagSec">
+      <div class="fbulk"><button data-set="tags-all">Select all</button><button data-set="tags-none">Deselect all</button></div>
+      <div id="tagList"></div>
+    </div>
     <div id="fnone"></div>
   </div>
  </div>
@@ -381,13 +422,33 @@
 <div id="browse">
  <div class="bwrap">
   <div class="bhead">
-    <input id="search" placeholder="Search — accents optional…" autocomplete="off">
+    <input id="search" placeholder='Search Vietnamese — e.g. "lên trên", xuống sâu' autocomplete="off" autocapitalize="off" spellcheck="false">
     <select id="bfilter"><option value="__all__">All tags</option></select>
     <span id="bcount" class="note"></span>
     <span class="bspacer"></span>
+    <button id="saveDeck" class="bbtn" title="Save search as a deck">Save as deck</button>
     <button id="addFromBrowse">+ Add</button>
     <button id="closeBrowse">Close</button>
   </div>
+  <div id="bedit">
+    <span>Editing the search for <b id="beditName"></b></span>
+    <span class="bspacer"></span>
+    <button id="beditSave" class="bbtn primary">Save changes</button>
+    <button id="beditCancel" class="bbtn">Cancel</button>
+  </div>
+  <div id="bnote" class="note"></div>
+  <details id="bhelp">
+    <summary>Search tips</summary>
+    <table>
+      <tr><td><code>lên trên</code></td><td>both words, any order</td></tr>
+      <tr><td><code>"lên trên"</code></td><td>exact phrase</td></tr>
+      <tr><td><code>lên, trên</code></td><td>either (or <code>OR</code>)</td></tr>
+      <tr><td><code>-trên</code></td><td>exclude</td></tr>
+      <tr><td><code>ng*</code></td><td>word starts with ng</td></tr>
+      <tr><td><code>en:</code> <code>tag:</code></td><td>search English / tags</td></tr>
+      <tr><td><code>ban</code> / <code>bán</code></td><td>no accents = any accents</td></tr>
+    </table>
+  </details>
   <div id="blist"></div>
  </div>
 </div>
@@ -430,6 +491,7 @@
   const DECK_KEY = "outputDeck_v1";
   const SET_KEY  = "outputSettings_v1";
   const STATS_KEY = "outputStats_v1";
+  const DECKS_KEY = "outputDecks_v1";
 
   // ---------- state ----------
   // Card shape: {id, en, vi, tag, prog, r:{dev:n}, f:{dev:n}, t, e, del?}
@@ -443,6 +505,8 @@
   // activity ledger, kept separate from card review counts so resets never touch it.
   // Bucketed per device: stats.dev[deviceId] = {daily,byTag,failDaily,failByTag}
   let stats = load(STATS_KEY, { dev: {} });
+  // saved searches ("decks"); see the search language section
+  let decks = load(DECKS_KEY, []);
   let current = null;
   let revealed = false;
   let lastId = null;
@@ -603,8 +667,13 @@
   }
   function ageSelected(c) { return settings.ages.includes(ageOf(c)); }
 
+  // a chosen deck replaces the tag filter; the card-age filter still applies
+  function poolSelected(c) {
+    const d = activeDeck();
+    return d ? inDeck(d, c) : tagSelected(c);
+  }
   function activeCards() {
-    return deck.filter(c => !isDeleted(c) && ageSelected(c) && tagSelected(c));
+    return deck.filter(c => !isDeleted(c) && ageSelected(c) && poolSelected(c));
   }
   function cardById(id) { return deck.find(c => c.id === id); }
   // a card's tag field is a ';'-separated string; split into a clean array
@@ -647,6 +716,8 @@
   // ---------- rendering ----------
   // drop any remembered tags that no longer exist in the deck
   function rebuildFilter() {
+    // the chosen deck may have been deleted (here, or by a merge)
+    if (settings.deckId && !activeDeck()) { settings.deckId = null; saveSettings(); }
     if (settings.tagMode === "some") {
       const keys = allTagKeys();
       settings.tags = settings.tags.filter(t => keys.includes(t));
@@ -660,12 +731,13 @@
   }
 
   function isNarrowed() {
-    return settings.tagMode === "some" || settings.ages.length !== AGE_KEYS.length;
+    return !!activeDeck() || settings.tagMode === "some" || settings.ages.length !== AGE_KEYS.length;
   }
   function renderFilterBtn() {
-    const b = $("filterBtn");
+    const b = $("filterBtn"), d = activeDeck();
     b.classList.toggle("on", isNarrowed());
-    b.textContent = isNarrowed() ? "Filter ●" : "Filter";
+    b.textContent = d ? "Deck: " + d.name : isNarrowed() ? "Filter ●" : "Filter";
+    b.title = d ? `Deck: ${d.name}` : "Filter";
   }
 
   function renderCounts() {
@@ -686,11 +758,37 @@
     </label>`;
   }
 
+  function deckRow(id, name, q, count, checked) {
+    const btns = id ? `<span class="dbtns">
+        <button data-act="edit" title="Edit search">Edit search</button>
+        <button data-act="rename">Rename</button>
+        <button data-act="delete" class="del" title="Cards are kept">Delete deck</button>
+      </span>` : "";
+    return `<div class="fopt deckopt${checked ? "" : " off"}" data-deck="${escapeHtml(id)}" role="radio" aria-checked="${checked}" tabindex="0">
+      <input type="radio" name="deckpick" tabindex="-1"${checked ? " checked" : ""}>
+      <span class="fname">${escapeHtml(name)}${q ? `<span class="dq">${escapeHtml(q)}</span>` : ""}${btns}</span>
+      <span class="fcnt">${count}</span>
+    </div>`;
+  }
+  function renderDecks(live) {
+    const forDecks = live.filter(ageSelected), cur = activeDeck();
+    const list = liveDecks();
+    $("deckList").innerHTML = deckRow("", "All cards", "", forDecks.length, !cur)
+      + list.map(d => deckRow(d.id, d.name, d.q, forDecks.filter(c => inDeck(d, c)).length,
+          cur && cur.id === d.id)).join("")
+      + `<div class="note" style="padding:10px 4px">${list.length ? "" : "No decks yet. "}New deck: <b>Browse</b> → search → <b>Save as deck</b>.</div>`;
+  }
+
   function renderFilters() {
     const live = liveDeck();
+    renderDecks(live);
+    const d = activeDeck();
+    $("tagSec").style.display = d ? "none" : "";
+    $("tagsOff").style.display = d ? "" : "none";
+    $("tagsOff").innerHTML = d ? `Off while a deck is chosen.` : "";
     // each axis counts against the *other* axis's current selection, so the
     // numbers tell you what you'd actually get by ticking a box
-    const forAges = live.filter(tagSelected);
+    const forAges = live.filter(poolSelected);
     const ageCounts = {}; AGE_KEYS.forEach(k => ageCounts[k] = 0);
     forAges.forEach(c => ageCounts[ageOf(c)]++);
 
@@ -712,7 +810,7 @@
     $("fcount").textContent = `${n} card${n !== 1 ? "s" : ""} in play`;
     $("fnone").textContent =
       settings.ages.length === 0 ? "No card ages ticked — nothing will show."
-      : (settings.tagMode === "some" && settings.tags.length === 0) ? "No tags ticked — nothing will show."
+      : (!d && settings.tagMode === "some" && settings.tags.length === 0) ? "No tags ticked — nothing will show."
       : n === 0 ? "Nothing matches this combination." : "";
   }
 
@@ -744,6 +842,40 @@
     afterFilterChange();
   });
 
+  function pickDeck(id) {
+    settings.deckId = id || null;
+    afterFilterChange();
+  }
+  $("deckList").addEventListener("click", e => {
+    const row = e.target.closest(".deckopt"); if (!row) return;
+    const id = row.getAttribute("data-deck");
+    const act = e.target.closest("button[data-act]");
+    if (!act) { pickDeck(id); return; }
+    const d = deckById(id); if (!d) return;
+    switch (act.getAttribute("data-act")) {
+      case "edit": closeFilters(); openBrowse(d.id); break;
+      case "rename": {
+        const name = prompt("Rename this deck:", d.name);
+        if (name == null || !name.trim()) return;
+        d.name = name.trim(); d.e = touch(); saveDecks();
+        renderFilters(); renderFilterBtn();
+        break;
+      }
+      case "delete":
+        if (!confirm(`Delete deck “${d.name}”?\n\nYour cards are kept.`)) return;
+        d.del = touch(); saveDecks();
+        if (settings.deckId === d.id) settings.deckId = null;
+        afterFilterChange();
+        break;
+    }
+  });
+  $("deckList").addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest(".deckopt");
+    if (!row || e.target !== row) return;
+    e.preventDefault(); pickDeck(row.getAttribute("data-deck"));
+  });
+
   $("fbody").addEventListener("click", e => {
     const b = e.target.closest("button[data-set]"); if (!b) return;
     switch (b.getAttribute("data-set")) {
@@ -770,6 +902,9 @@
       emptyEl.innerHTML =
           liveDeck().length === 0 ? "No cards yet. Tap <b>+ Add</b> for one, or open <b>Menu</b> to paste a batch."
         : settings.ages.length === 0 ? "No card ages ticked. Open <b>Filter</b> and pick at least one."
+        : activeDeck() ? `No cards match the deck <b>${escapeHtml(activeDeck().name)}</b> right now`
+            + (settings.ages.length !== AGE_KEYS.length ? " with these card ages" : "")
+            + ". Tap the <b>Deck</b> button to pick another."
         : (settings.tagMode === "some" && settings.tags.length === 0)
             ? "No tags ticked. Open <b>Filter</b> and pick at least one."
         : "Nothing matches this filter. Open <b>Filter</b> to widen it.";
@@ -1128,7 +1263,7 @@
   function payloadText() {
     return JSON.stringify(
       { version: 3, exported: new Date().toISOString(), device: settings.device,
-        bands: bandPayload(), deck, stats },
+        bands: bandPayload(), deck, stats, decks },
       null, 2);
   }
   // adopt the incoming bands only when they were changed more recently than ours
@@ -1160,6 +1295,7 @@
     if (Array.isArray(data)) { rawDeck = data; rawStats = null; }
     else if (data && Array.isArray(data.deck)) {
       rawDeck = data.deck; rawStats = data.stats; device = data.device; var rawBands = data.bands;
+      var rawDecks = data.decks;
     }
     else throw new Error("unrecognised file");
     const legacy = !device || !rawDeck.some(c => c && c.r);
@@ -1167,7 +1303,8 @@
     return {
       deck: normalizeDeck(rawDeck, key),
       stats: normalizeStats(rawStats, key),
-      bands: rawBands, legacy, device: key
+      bands: rawBands, legacy, device: key,
+      decks: Array.isArray(rawDecks) ? normalizeDecks(rawDecks) : null  // null: file predates decks
     };
   }
 
@@ -1230,6 +1367,7 @@
     });
     deck = Array.from(byId.values());
     mergeStats(incoming.stats);
+    const decksChanged = incoming.decks ? mergeDecks(incoming.decks) : 0;
     const bandsChanged = mergeBands(incoming.bands);
     saveDeck(); saveStats(); markSynced();
     rebuildFilter(); renderCounts();
@@ -1237,6 +1375,7 @@
     lastId = null; showCard(pickNext());
     msg(`Merged: ${added} new card${added !== 1 ? "s" : ""}, ${touched} updated`
       + (removed ? `, ${removed} deleted` : "")
+      + (decksChanged ? `, ${decksChanged} deck${decksChanged !== 1 ? "s" : ""} added or changed` : "")
       + (bandsChanged ? `, card ages updated to ${settings.youngAt}/${settings.matureAt}/${settings.elderlyAt}` : "") + ".");
   }
 
@@ -1247,6 +1386,7 @@
       + `Anything practised here and not yet synced will be lost. "Merge" is the safe option.`)) return;
     deck = incoming.deck;
     stats = incoming.stats;
+    if (incoming.decks) { decks = incoming.decks; saveDecks(); }  // an older file has none: keep ours
     if (incoming.bands) { settings.bandsUpdated = 0; mergeBands(incoming.bands); }  // take the file's bands wholesale
     saveDeck(); saveStats(); markSynced();
     rebuildFilter(); renderCounts();
@@ -1344,26 +1484,195 @@
   };
 
 
-  // ---------- browse ----------
-  let browseFilter = "__all__";
+  // ---------- search language ----------
+  // Used by Browse and by saved decks, so what Browse shows is exactly what a
+  // deck practises.
+  //   lên trên        both words, any order, anywhere in the sentence
+  //   "lên trên"      exact phrase: adjacent, in order, no punctuation between
+  //   a, b  /  a OR b either side (each side is a whole group of words)
+  //   -trên           leave out cards that have it
+  //   ng*             wildcard; matches whole words only otherwise
+  //   en: / tag:      search the English side or the tags (default: Vietnamese)
+  // Accents are decided per word: none typed → ignored, any typed → exact.
 
   // strip Vietnamese tone/vowel marks: "Bạn khỏe" → "ban khoe", "đi" → "di"
   function fold(s) {
     return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
       .replace(/[đĐ]/g, "d").toLowerCase();
   }
+  const lowerNFC = s => (s || "").normalize("NFC").toLowerCase();
+
+  // A sentence → segments (split at punctuation) → words. A phrase must sit
+  // inside one segment, which is how "lên, trên" fails to match "lên trên".
+  // Spaces, hyphens and apostrophes don't break a segment.
+  const HARD_BREAK = /[^\p{L}\p{M}\p{N}\s'’\-]+/u;
+  const QUERY_BREAK = /[^\p{L}\p{M}\p{N}\s'’\-*]+/u;   // the same, but * is a wildcard
+  const WORD = /[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*/gu;
+  const segCache = new Map();
+  function segmentsOf(text) {
+    text = text || "";
+    let segs = segCache.get(text);
+    if (segs) return segs;
+    segs = lowerNFC(text).split(HARD_BREAK)
+      .map(part => (part.match(WORD) || []).map(w => ({ s: w, l: fold(w) })))
+      .filter(seg => seg.length);
+    if (segCache.size > 20000) segCache.clear();
+    segCache.set(text, segs);
+    return segs;
+  }
+
+  // one typed word → a test for one word of a card
+  function wordMatcher(raw) {
+    const w = lowerNFC(raw);
+    const strict = fold(w) !== w;
+    const key = strict ? w : fold(w);
+    const pick = strict ? (x => x.s) : (x => x.l);
+    if (key.includes("*")) {
+      const re = new RegExp("^" + key.split("*").map(p => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$", "u");
+      return x => re.test(pick(x));
+    }
+    return x => pick(x) === key;
+  }
+
+  const OPEN_QUOTES = "\"“”„«";
+  const CLOSE_QUOTES = "\"“”„»";
+  // Returns groups (OR'd together); each group is a list of terms (AND'd).
+  // Each group also keeps its source text so a tag can be folded into it.
+  const parseCache = new Map();
+  function parseQuery(src) {
+    src = src || "";
+    if (parseCache.has(src)) return parseCache.get(src);
+    const s = src, n = s.length, groups = [];
+    let cur = [], start = 0, i = 0;
+    const isSep = ch => ch === undefined || /\s/.test(ch) || ch === ",";
+    const endGroup = (at, next) => {
+      if (cur.length) { cur.src = s.slice(start, at).trim(); groups.push(cur); }
+      cur = []; start = next;
+    };
+    while (i < n) {
+      const ch = s[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (ch === ",") { endGroup(i, i + 1); i++; continue; }
+      if (s.startsWith("OR", i) && isSep(s[i - 1]) && isSep(s[i + 2])) { endGroup(i, i + 2); i += 2; continue; }
+      let neg = false, field = "vi";
+      if (ch === "-") { neg = true; i++; }
+      const m = /^(en|vi|tag):/i.exec(s.slice(i, i + 4));
+      if (m) { field = m[1].toLowerCase(); i += m[0].length; }
+      let text, quoted = false;
+      if (OPEN_QUOTES.includes(s[i])) {
+        quoted = true;
+        let j = i + 1;
+        while (j < n && !CLOSE_QUOTES.includes(s[j])) j++;
+        text = s.slice(i + 1, j); i = j + 1;        // an unclosed quote runs to the end
+      } else {
+        let j = i;
+        while (j < n && !isSep(s[j])) j++;
+        text = s.slice(i, j); i = j;
+      }
+      let term = null;
+      if (field === "tag") {
+        const t = text.trim();
+        if (t && !/^\*+$/.test(t)) term = { neg, field, test: wordMatcher(t) };
+      } else {
+        // the typed text goes through the same splitter as the cards, so a
+        // stray full stop is ignored and "lên-trên" counts as a phrase.
+        // A lone * is "any one word" inside quotes, and meaningless outside.
+        let words = lowerNFC(text).split(QUERY_BREAK).join(" ")
+          .match(/[\p{L}\p{M}\p{N}*]+(?:['’][\p{L}\p{M}\p{N}*]+)*/gu) || [];
+        if (!quoted) { quoted = words.length > 1; if (!quoted) words = words.filter(w => !/^\*+$/.test(w)); }
+        if (words.length && !words.every(w => /^\*+$/.test(w)))
+          term = { neg, field, quoted, seq: words.map(wordMatcher) };
+      }
+      if (term) cur.push(term);
+    }
+    endGroup(n, n);
+    if (parseCache.size > 500) parseCache.clear();
+    parseCache.set(src, groups);
+    return groups;
+  }
+
+  function seqIn(segs, seq) {
+    for (const seg of segs)
+      for (let k = 0; k + seq.length <= seg.length; k++) {
+        let ok = true;
+        for (let m = 0; m < seq.length; m++) if (!seq[m](seg[k + m])) { ok = false; break; }
+        if (ok) return true;
+      }
+    return false;
+  }
+  function termHits(t, c) {
+    if (t.field === "tag") return cardTags(c).some(tag => t.test({ s: lowerNFC(tag), l: fold(tag) }));
+    const segs = segmentsOf(t.field === "en" ? c.en : c.vi);
+    // unquoted words are each independent (AND, any order); quoted ones are a phrase
+    if (t.quoted) return seqIn(segs, t.seq);
+    return t.seq.every(w => seqIn(segs, [w]));
+  }
+  // an empty query matches everything
+  function cardMatches(groups, c) {
+    if (!groups.length) return true;
+    return groups.some(g => g.every(t => termHits(t, c) !== t.neg));
+  }
+  // fold a Browse tag choice into every OR group, so a saved deck keeps it
+  function withTag(q, tag) {
+    if (!tag) return q.trim();
+    const clean = '"' + tag.replace(/["“”„«»]/g, "") + '"';
+    const groups = parseQuery(q);
+    return groups.length
+      ? groups.map(g => `${g.src} tag:${clean}`).join(", ")
+      : `tag:${clean}`;
+  }
+
+  // ---------- saved decks ----------
+  // A deck is only a name and a search. Its cards are found afresh every time,
+  // so deleting a deck never touches a card, and edits/new cards are picked up.
+  // Shape: {id, name, q, e, del?}  e = last change (ms), del = tombstone.
+  function liveDecks() {
+    return decks.filter(d => !d.del).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  }
+  function deckById(id) { return id ? decks.find(d => d.id === id && !d.del) : null; }
+  function activeDeck() { return deckById(settings.deckId); }
+  function inDeck(d, c) { return cardMatches(parseQuery(d.q), c); }
+  function saveDecks() { try { localStorage.setItem(DECKS_KEY, JSON.stringify(decks)); } catch (e) {} }
+  function normalizeDecks(arr) {
+    return (Array.isArray(arr) ? arr : [])
+      .filter(d => d && typeof d === "object" && d.id && typeof d.q === "string")
+      .map(d => {
+        const out = { id: String(d.id), name: String(d.name || d.q), q: d.q, e: Number(d.e) || 0 };
+        if (d.del) out.del = Number(d.del) || touch();
+        return out;
+      });
+  }
+  // whoever changed it last wins, a deletion included
+  function mergeDecks(incoming) {
+    const stamp = d => Math.max(d.e || 0, d.del || 0);
+    const byId = new Map(decks.map(d => [d.id, d]));
+    let changed = 0;
+    incoming.forEach(t => {
+      const mine = byId.get(t.id);
+      if (!mine) { byId.set(t.id, t); if (!t.del) changed++; return; }
+      if (stamp(t) > stamp(mine)) {
+        if (mine.name !== t.name || mine.q !== t.q || !!mine.del !== !!t.del) changed++;
+        byId.set(t.id, t);
+      }
+    });
+    decks = Array.from(byId.values());
+    saveDecks();
+    return changed;
+  }
+
+  // ---------- browse ----------
+  let browseFilter = "__all__";
+  let editingDeckId = null;   // set while Browse is editing a deck's search
+
+  function browseQuery() {
+    return withTag($("search").value, browseFilter === "__all__" ? "" : browseFilter);
+  }
   function browseRows() {
-    const raw = $("search").value.trim().normalize("NFC").toLowerCase();
-    // No accents typed → ignore accents ("ban" finds bạn, bán, bàn).
-    // Any accent typed → match accents exactly ("bán" finds only bán).
-    const strict = raw && fold(raw) !== raw;
-    const norm = strict ? s => (s || "").normalize("NFC").toLowerCase() : fold;
-    const q = strict ? raw : fold(raw);
+    const groups = parseQuery($("search").value);
     return deck.filter(c => {
       if (isDeleted(c)) return false;
       if (browseFilter !== "__all__" && !cardTags(c).includes(browseFilter)) return false;
-      if (q && !(norm(c.en).includes(q) || norm(c.vi).includes(q) || norm(c.tag).includes(q))) return false;
-      return true;
+      return cardMatches(groups, c);
     });
   }
 
@@ -1372,6 +1681,10 @@
     const list = $("blist");
     const total = liveDeck().length;
     $("bcount").textContent = `${rows.length} of ${total} card${total !== 1 ? "s" : ""}`;
+    const hasQuery = !!browseQuery();
+    $("saveDeck").disabled = !hasQuery;
+    $("saveDeck").textContent = editingDeckId ? "Save as new deck" : "Save as deck";
+    $("beditSave").disabled = !hasQuery;
     if (rows.length === 0) {
       list.innerHTML = `<div id="bempty">${total === 0 ? "No cards yet." : "Nothing matches."}</div>`;
       return;
@@ -1404,21 +1717,69 @@
     }
   });
 
-  function openBrowse() {
+  // deckId: open Browse to edit that deck's search
+  function openBrowse(deckId) {
     $("bfilter").innerHTML = '<option value="__all__">All tags</option>' + tagOptions();
     if (browseFilter !== "__all__" && !tagList().includes(browseFilter)) browseFilter = "__all__";
+    const d = typeof deckId === "string" ? deckById(deckId) : null;
+    editingDeckId = d ? d.id : null;
+    if (d) { $("search").value = d.q; browseFilter = "__all__"; }  // any tag lives in the search text
     $("bfilter").value = browseFilter;
+    $("bedit").classList.toggle("open", !!d);
+    $("beditName").textContent = d ? d.name : "";
+    $("bnote").textContent = "";
     renderBrowseList();
     $("browse").classList.add("open");
+    if (d) $("search").focus();
+  }
+  function stopEditingDeck() {
+    editingDeckId = null;
+    $("bedit").classList.remove("open");
+    renderBrowseList();
+  }
+  function browseNote(t) {
+    $("bnote").textContent = t;
+    clearTimeout(browseNote.timer);
+    browseNote.timer = setTimeout(() => { $("bnote").textContent = ""; }, 6000);
+  }
+  function saveBrowseAsDeck() {
+    const q = browseQuery(); if (!q) return;
+    const name = prompt("Name this deck:", q.length > 40 ? q.slice(0, 40) + "…" : q);
+    if (name == null) return;
+    const now = touch();
+    const d = { id: "d-" + nextId(), name: name.trim() || q, q, e: now };
+    decks.push(d); saveDecks();
+    const n = browseRows().length;
+    browseNote(`Saved “${d.name}” · ${n} card${n !== 1 ? "s" : ""}. Choose it in Filter.`);
+    if (editingDeckId) stopEditingDeck(); else renderBrowseList();
+    rebuildFilter();
+  }
+  function saveDeckEdit() {
+    const d = deckById(editingDeckId), q = browseQuery();
+    if (!d || !q) return;
+    d.q = q; d.e = touch(); saveDecks();
+    if (browseFilter !== "__all__") {  // the tag is now part of the search text
+      browseFilter = "__all__"; $("bfilter").value = browseFilter; $("search").value = q;
+    }
+    browseNote(`Updated “${d.name}”.`);
+    stopEditingDeck();
+    rebuildFilter(); renderCounts();
   }
   function closeBrowse() {
+    if (editingDeckId) { editingDeckId = null; $("bedit").classList.remove("open"); }
     $("browse").classList.remove("open");
     rebuildFilter(); renderCounts();
     if (!current || !cardById(current.id) || !activeCards().some(c => c.id === current.id))
       { lastId = null; showCard(pickNext()); }
     else showCard(current); // reflect any edits to the current card
   }
-  $("browseBtn").onclick = openBrowse;
+  $("browseBtn").onclick = () => openBrowse();
+  $("saveDeck").onclick = saveBrowseAsDeck;
+  $("beditSave").onclick = saveDeckEdit;
+  $("beditCancel").onclick = () => { browseNote(""); stopEditingDeck(); };
+  $("search").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); $("search").blur(); }
+  });
   $("addFromBrowse").onclick = () => openAdd();
   $("closeBrowse").onclick = closeBrowse;
   $("search").oninput = renderBrowseList;
@@ -1807,6 +2168,8 @@
   deck = deck.filter(c => !c.del || c.del > cutoff);
   if (deck.length !== before) migrated = true;
   if (migrated) saveDeck();
+  decks = normalizeDecks(decks).filter(d => !d.del || d.del > cutoff);
+  saveDecks();
 
   applyTheme();
   rebuildFilter();
