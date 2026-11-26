@@ -447,6 +447,7 @@
       <tr><td><code>ng*</code></td><td>word starts with ng</td></tr>
       <tr><td><code>en:</code> <code>tag:</code></td><td>search English / tags</td></tr>
       <tr><td><code>vần:ộc</code></td><td>rhyme: lộc, mộc — not cuộc</td></tr>
+      <tr><td><code>vần: ọc, ộc</code></td><td>prefix + space covers everything after</td></tr>
       <tr><td><code>cho</code> ≠ <code>chỗ</code></td><td>accents must match</td></tr>
     </table>
   </details>
@@ -1495,6 +1496,7 @@
   //   ng*             wildcard; matches whole words only otherwise
   //   en: / tag:      search the English side or the tags (default: Vietnamese)
   //   vần:ộc          words whose rhyme (vần) is ộc: lộc, mộc, but not cuộc (c + uộc)
+  //   vần: ọc, ộc     a prefix followed by a space applies to everything after it
   // Accents always count exactly as typed: cho finds cho, never chỗ or chợ.
   // Only letter case is ignored.
   const lowerNFC = s => (s || "").normalize("NFC").toLowerCase();
@@ -1559,6 +1561,7 @@
     if (parseCache.has(src)) return parseCache.get(src);
     const s = src.normalize("NFC"), n = s.length, groups = [];
     let cur = [], start = 0, i = 0;
+    let defField = "vi";   // a prefix on its own ("vần: ọc, ộc") sets this for the rest
     const isSep = ch => ch === undefined || /\s/.test(ch) || ch === ",";
     const endGroup = (at, next) => {
       if (cur.length) { cur.src = s.slice(start, at).trim(); groups.push(cur); }
@@ -1569,11 +1572,12 @@
       if (/\s/.test(ch)) { i++; continue; }
       if (ch === ",") { endGroup(i, i + 1); i++; continue; }
       if (s.startsWith("OR", i) && isSep(s[i - 1]) && isSep(s[i + 2])) { endGroup(i, i + 2); i += 2; continue; }
-      let neg = false, field = "vi";
+      let neg = false, field = defField;
       if (ch === "-") { neg = true; i++; }
       const m = /^(en|vi|tag|vần|van|rhyme):/i.exec(s.slice(i, i + 6));
       if (m) { field = m[1].toLowerCase(); i += m[0].length; }
       if (field === "vần" || field === "van" || field === "rhyme") field = "rhyme";
+      if (m && !neg && isSep(s[i])) { defField = field; continue; }
       let text, quoted = false;
       if (OPEN_QUOTES.includes(s[i])) {
         quoted = true;
@@ -1596,6 +1600,8 @@
         let words = lowerNFC(text).split(QUERY_BREAK).join(" ")
           .match(/[\p{L}\p{M}\p{N}*]+(?:['’][\p{L}\p{M}\p{N}*]+)*/gu) || [];
         if (!quoted) { quoted = words.length > 1; if (!quoted) words = words.filter(w => !/^\*+$/.test(w)); }
+        // a vần always starts with a vowel, so "vần: ọc -lộc" must mean the word lộc
+        if (field === "rhyme" && words.length && !/^[*]/.test(words[0]) && !isVowel(words[0][0])) field = "vi";
         if (words.length && !words.every(w => /^\*+$/.test(w)))
           term = { neg, field, quoted, seq: words.map(wordMatcher) };
       }
