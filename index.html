@@ -158,7 +158,7 @@
   #bhelp.open { display:block; }
   #bhelp table { border-collapse:collapse; width:100%; }
   #bhelp td { padding:4px 8px 4px 0; vertical-align:top; line-height:1.45; }
-  #bhelp td:first-child { white-space:nowrap; color:var(--fg); width:1%; }
+  #bhelp td:first-child { white-space:nowrap; color:var(--fg); width:1%; padding-right:14px; }
   #bhelp code { font-size:13px; }
 
   /* edit modal */
@@ -296,7 +296,6 @@
     .bbtn { min-height:38px; }
     #filterBtn { max-width:27vw; flex:0 1 auto; }
     .deckopt .dbtns button { min-height:36px; padding:0 12px; }
-    #bhelp td:first-child { white-space:normal; width:34%; }
   }
   @media (max-width: 440px) { #bar .lbl { display:none; } }
 </style>
@@ -419,11 +418,11 @@
  <div class="bwrap">
   <div class="bhead">
     <input id="search" placeholder='Search Vietnamese — e.g. "lên trên", xuống sâu' autocomplete="off" autocapitalize="off" spellcheck="false">
-    <button id="helpBtn" class="bbtn" aria-expanded="false" title="How searching works">?</button>
+    <button id="helpBtn" class="bbtn" aria-expanded="false" title="Search help">?</button>
     <select id="bfilter"><option value="__all__">All tags</option></select>
     <span id="bcount" class="note"></span>
     <span class="bspacer"></span>
-    <button id="saveDeck" class="bbtn" title="Save this search as a deck you can practise">Save as deck</button>
+    <button id="saveDeck" class="bbtn" title="Save search as a deck">Save as deck</button>
     <button id="addFromBrowse">+ Add</button>
     <button id="closeBrowse">Close</button>
   </div>
@@ -436,13 +435,13 @@
   <div id="bnote" class="note"></div>
   <div id="bhelp">
     <table>
-      <tr><td><code>lên trên</code></td><td>both words, any order, anywhere in the sentence</td></tr>
-      <tr><td><code>"lên trên"</code></td><td>exact phrase — side by side, in that order. A comma or full stop between them doesn't count</td></tr>
-      <tr><td><code>lên, trên</code><br><code>lên OR trên</code></td><td>either one. Each side is a whole group, so <code>"lên trên", xuống sâu</code> means the phrase <i>or</i> both xuống and sâu</td></tr>
-      <tr><td><code>-trên</code></td><td>leave out cards with this word (works with phrases too: <code>-"lên trên"</code>)</td></tr>
-      <tr><td><code>ng*</code></td><td>any word starting <i>ng</i>. Otherwise only whole words match, so <code>an</code> won't find bạn. Inside quotes a lone <code>*</code> is any one word: <code>"lên * trên"</code></td></tr>
-      <tr><td><code>en:</code> <code>tag:</code></td><td>search the English side or a tag instead of the Vietnamese: <code>en:"how much"</code>, <code>tag:cafe</code>, <code>-tag:"food"</code></td></tr>
-      <tr><td>accents</td><td>Type none and they're ignored (<code>ban</code> finds bạn, bán). Type any and that word must match exactly. Each word decides for itself</td></tr>
+      <tr><td><code>lên trên</code></td><td>both words, any order</td></tr>
+      <tr><td><code>"lên trên"</code></td><td>exact phrase</td></tr>
+      <tr><td><code>lên, trên</code></td><td>either (or <code>OR</code>)</td></tr>
+      <tr><td><code>-trên</code></td><td>exclude</td></tr>
+      <tr><td><code>ng*</code></td><td>word starts with ng</td></tr>
+      <tr><td><code>en:</code> <code>tag:</code></td><td>search English / tags</td></tr>
+      <tr><td><code>ban</code> / <code>bán</code></td><td>no accents = any accents</td></tr>
     </table>
   </div>
   <div id="blist"></div>
@@ -733,7 +732,7 @@
     const b = $("filterBtn"), d = activeDeck();
     b.classList.toggle("on", isNarrowed());
     b.textContent = d ? "Deck: " + d.name : isNarrowed() ? "Filter ●" : "Filter";
-    b.title = d ? `Practising the deck “${d.name}” — tap to change` : "Choose what to practise";
+    b.title = d ? `Deck: ${d.name}` : "Filter";
   }
 
   function renderCounts() {
@@ -756,9 +755,9 @@
 
   function deckRow(id, name, q, count, checked) {
     const btns = id ? `<span class="dbtns">
-        <button data-act="edit" title="Change this deck's search in Browse">Edit search</button>
+        <button data-act="edit" title="Edit search">Edit search</button>
         <button data-act="rename">Rename</button>
-        <button data-act="delete" class="del" title="Deletes the deck only — your cards are untouched">Delete deck</button>
+        <button data-act="delete" class="del" title="Cards are kept">Delete deck</button>
       </span>` : "";
     return `<div class="fopt deckopt${checked ? "" : " off"}" data-deck="${escapeHtml(id)}" role="radio" aria-checked="${checked}" tabindex="0">
       <input type="radio" name="deckpick" tabindex="-1"${checked ? " checked" : ""}>
@@ -772,7 +771,7 @@
     $("deckList").innerHTML = deckRow("", "All cards", "", forDecks.length, !cur)
       + list.map(d => deckRow(d.id, d.name, d.q, forDecks.filter(c => inDeck(d, c)).length,
           cur && cur.id === d.id)).join("")
-      + `<div class="note" style="padding:10px 4px">${list.length ? "" : "No decks yet. "}To make one, open <b>Browse</b>, search, then tap <b>Save as deck</b>. A deck re-runs its search every time, so new cards that fit join it and deleted ones leave.</div>`;
+      + `<div class="note" style="padding:10px 4px">${list.length ? "" : "No decks yet. "}New deck: <b>Browse</b> → search → <b>Save as deck</b>.</div>`;
   }
 
   function renderFilters() {
@@ -781,7 +780,7 @@
     const d = activeDeck();
     $("tagSec").style.display = d ? "none" : "";
     $("tagsOff").style.display = d ? "" : "none";
-    $("tagsOff").innerHTML = d ? `Not used while a deck is chosen — the deck's search decides which cards are in. Pick <b>All cards</b> to filter by tag.` : "";
+    $("tagsOff").innerHTML = d ? `Off while a deck is chosen.` : "";
     // each axis counts against the *other* axis's current selection, so the
     // numbers tell you what you'd actually get by ticking a box
     const forAges = live.filter(poolSelected);
@@ -858,7 +857,7 @@
         break;
       }
       case "delete":
-        if (!confirm(`Delete the deck “${d.name}”?\n\nOnly the saved search goes. Your cards, their progress and tags are untouched.`)) return;
+        if (!confirm(`Delete deck “${d.name}”?\n\nYour cards are kept.`)) return;
         d.del = touch(); saveDecks();
         if (settings.deckId === d.id) settings.deckId = null;
         afterFilterChange();
@@ -1746,7 +1745,7 @@
     const d = { id: "d-" + nextId(), name: name.trim() || q, q, e: now };
     decks.push(d); saveDecks();
     const n = browseRows().length;
-    browseNote(`Saved “${d.name}” (${n} card${n !== 1 ? "s" : ""} right now). Pick it under Filter to practise.`);
+    browseNote(`Saved “${d.name}” · ${n} card${n !== 1 ? "s" : ""}. Choose it in Filter.`);
     if (editingDeckId) stopEditingDeck(); else renderBrowseList();
     rebuildFilter();
   }
